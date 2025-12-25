@@ -267,7 +267,7 @@ jobs:
   deploy-to-staging:
     runs-on: ubuntu-latest
     needs: push
-    if: false  # Désactivé pour test sans déploiement
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'  # Activé pour test en staging
     environment: staging
     steps:
       - name: Checkout code
