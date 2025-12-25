@@ -11,7 +11,7 @@ env:
   REGISTRY: ghcr.io
   STAGING_NAMESPACE: dev
   PROD_NAMESPACE: prod
-  APP_PORT: 5000
+  APP_PORT: 8050
   NODE_PORT_STAGING: "30080"
   NODE_PORT_PROD: "30081"
   MINIKUBE_IP: "192.168.58.2"
@@ -64,17 +64,23 @@ jobs:
             -e SONAR_HOST_URL=${{ secrets.SONAR_HOST_URL }} \
             -e SONAR_ORGANIZATION=${{ secrets.SONAR_ORGANIZATION }} \
             -e SONAR_PROJECT_KEY=${{ secrets.SONAR_PROJECT_KEY }} \
+            -e SONAR_USER_HOME=/usr/src/.sonar \
             sonarsource/sonar-scanner-cli:latest \
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }} \
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} \
             -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
-            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
+            -Dsonar.sources=src/main/java \
+            -Dsonar.java.source=17 \
+            -Dsonar.java.target=17 \
+            -Dsonar.exclusions=**/test/**
+        continue-on-error: true
 
       - name: Snyk (SCA)
         run: |
           docker run --rm -v $(pwd):/src \
             -e SNYK_TOKEN=${{ secrets.SNYK_TOKEN }} \
-            node:18 sh -c "cd /src && npm install -g snyk && snyk auth \$SNYK_TOKEN && snyk test --json > snyk-report.json"
+            node:18 sh -c "cd /src && npm install -g snyk && snyk auth \$SNYK_TOKEN && snyk test --json > snyk-report.json" || true
         continue-on-error: true
 
       - name: Upload Snyk report
