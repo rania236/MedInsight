@@ -1,0 +1,172 @@
+version: '3.9'
+
+services:
+  # ===============================
+  #  BASE DE DONNÉES PATIENTS
+  # ===============================
+  patient-db-service:
+    container_name: patient_postgres
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: patient_user
+      POSTGRES_PASSWORD: patient_pass
+      POSTGRES_DB: patient_db
+    volumes:
+      - patient_db_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - microservices-net
+    restart: unless-stopped
+
+  # ===============================
+  #  BASE DE DONNÉES MÉDECINS
+  # ===============================
+  medecin-db-service:
+    container_name: medecin_postgres
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: medecin_user
+      POSTGRES_PASSWORD: medecin_pass
+      POSTGRES_DB: medecin_db
+    volumes:
+      - medecin_db_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    networks:
+      - microservices-net
+    restart: unless-stopped
+
+  # ===============================
+  # PGADMIN (Dashboard DB)
+  # ===============================
+  pgadmin-service:
+    container_name: ms_pgadmin
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    networks:
+      - microservices-net
+    restart: unless-stopped
+
+  # ===============================
+  #  BASE MONGO POUR IA / ML
+  # ===============================
+  mongo-ia-db:
+    container_name: mongo_db
+    image: mongo:6-jammy
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ia_admin
+      MONGO_INITDB_ROOT_PASSWORD: ia_admin
+    networks:
+      - microservices-net
+    restart: unless-stopped
+
+  # ===============================
+  # MONGO EXPRESS (Dashboard MongoDB)
+  # ===============================
+  mongo-express-ui:
+    container_name: mongo_express
+    image: mongo-express:1.0.0-20-alpine3.18
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ia_admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ia_admin
+      ME_CONFIG_MONGODB_SERVER: mongo-ia-db
+      ME_CONFIG_BASICAUTH: false
+    networks:
+      - microservices-net
+
+  # ===============================
+  #  SERVEUR MAIL POUR TEST (MailDev)
+  # ===============================
+  mail-dev-service:
+    container_name: ms_mail_dev
+    image: maildev/maildev:2.1.0
+    ports:
+      - "1080:1080"
+      - "1025:1025"
+    networks:
+      - microservices-net
+
+  # ===============================
+  # CONSUL (Service Discovery)
+  # ===============================
+  consul:
+    container_name: consul
+    image: consul:1.15.4
+    ports:
+      - "8500:8500"   # Dashboard + API
+      - "8600:8600/udp"
+    command: "agent -server -bootstrap -ui -client=0.0.0.0"
+    networks:
+      - microservices-net
+    restart: unless-stopped
+
+  # ===============================
+  # KONG (API Gateway)
+  # ===============================
+  kong-database:
+    image: postgres:15-alpine
+    container_name: kong_postgres
+    environment:
+      POSTGRES_USER: kong
+      POSTGRES_DB: kong
+      POSTGRES_PASSWORD: kong
+    ports:
+      - "5435:5432"
+    networks:
+      - microservices-net
+    restart: unless-stopped
+
+  kong:
+    image: kong:3.6
+    container_name: kong
+    depends_on:
+      - kong-database
+      - consul
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-database
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_PROXY_LISTEN: 0.0.0.0:8000
+    ports:
+      - "8000:8000"   # Proxy
+      - "8443:8443"   # HTTPS Proxy (optionnel)
+      - "8001:8001"   # Admin API
+    networks:
+      - microservices-net
+    restart: unless-stopped
+
+# ===============================
+#  RÉSEAU DES MICROSERVICES
+# ===============================
+networks:
+  microservices-net:
+    driver: bridge
+
+# ===============================
+#  STOCKAGE PERSISTANT
+# ===============================
+volumes:
+  patient_db_data:
+  medecin_db_data:
+  pgadmin:
+  mongo:

@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: patient-service
+  datasource:
+    url: jdbc:postgresql://patient-db-service:5432/patient_db
+    username: patient_user
+    password: patient_pass
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  cloud:
+    consul:
+      host: consul
+      port: 8500
+      discovery:
+        register: true
+        service-id: patient-service
+        port: 8050
+        health-check-path: /actuator/health
+        health-check-interval: 10s
+        health-check-tls-skip-verify: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"   # expose tous les endpoints
+    health:
+      show-details: always
+
+server:
+  port: 8050
