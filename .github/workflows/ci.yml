@@ -18,7 +18,7 @@ env:
   APP_PORT: 8050  # Port de l'application (doit correspondre au Dockerfile)
   NODE_PORT_STAGING: "30080"  # Port NodePort pour staging
   NODE_PORT_PROD: "30081"  # Port NodePort pour production
-  MINIKUBE_IP: "192.168.58.2"  # IP de Minikube pour les tests
+  MINIKUBE_IP: "172.31.29.183"  # IP du master kubeadm
   SONAR_USER_HOME: "${{ github.workspace }}/.sonar"  # Cache pour SonarQube
   GIT_DEPTH: 0  # Récupérer tout l'historique Git
 
