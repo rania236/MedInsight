@@ -13,8 +13,8 @@ on:
 env:
   IMAGE_TAG: ghcr.io/rania236/medinsight:${{ github.sha }}  # Tag de l'image Docker avec le SHA du commit
   REGISTRY: ghcr.io  # Registre GitHub Container Registry
-  STAGING_NAMESPACE: dev  # Namespace Kubernetes pour staging
-  PROD_NAMESPACE: prod  # Namespace Kubernetes pour production
+  STAGING_NAMESPACE: medinsight  # Namespace pour staging (vos microservices)
+  PROD_NAMESPACE: medinsight  # Namespace pour production (même namespace pour simplicité)
   APP_PORT: 8050  # Port de l'application (doit correspondre au Dockerfile)
   NODE_PORT_STAGING: "30080"  # Port NodePort pour staging
   NODE_PORT_PROD: "30081"  # Port NodePort pour production
