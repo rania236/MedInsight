@@ -1,5 +1,6 @@
 name: CI/CD Pipeline
 
+# Test commit for pipeline trigger
 # Ce workflow définit un pipeline CI/CD complet pour l'application Java Spring Boot
 # Il s'exécute sur les push et PR vers main/master
 
