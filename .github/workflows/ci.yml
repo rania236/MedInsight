@@ -28,9 +28,8 @@ jobs:
           fetch-depth: 0
 
       - name: Gitleaks - secrets detection
-        uses: docker://zricethezav/gitleaks:latest
-        with:
-          args: detect --source . --report-format json --report-path gitleaks.json || exit_code=$?
+        run: |
+          docker run --rm -v $(pwd):/src zricethezav/gitleaks:latest detect --source /src --report-format json --report-path /src/gitleaks.json || exit_code=$?
         continue-on-error: true
 
       - name: Display Gitleaks report
@@ -59,26 +58,23 @@ jobs:
           fetch-depth: 0
 
       - name: SonarQube (SAST)
-        uses: docker://sonarsource/sonar-scanner-cli:latest
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
-          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
-        with:
-          args: |
-            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
-            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
-            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }}
+        run: |
+          docker run --rm -v $(pwd):/usr/src \
+            -e SONAR_TOKEN=${{ secrets.SONAR_TOKEN }} \
+            -e SONAR_HOST_URL=${{ secrets.SONAR_HOST_URL }} \
+            -e SONAR_ORGANIZATION=${{ secrets.SONAR_ORGANIZATION }} \
+            -e SONAR_PROJECT_KEY=${{ secrets.SONAR_PROJECT_KEY }} \
+            sonarsource/sonar-scanner-cli:latest \
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }} \
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} \
+            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
             -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
       - name: Snyk (SCA)
-        uses: docker://node:18
-        with:
-          args: |
-            npm install -g snyk
-            snyk auth ${{ secrets.SNYK_TOKEN }}
-            snyk test --json > snyk-report.json
+        run: |
+          docker run --rm -v $(pwd):/src \
+            -e SNYK_TOKEN=${{ secrets.SNYK_TOKEN }} \
+            node:18 sh -c "cd /src && npm install -g snyk && snyk auth \$SNYK_TOKEN && snyk test --json > snyk-report.json"
         continue-on-error: true
 
       - name: Upload Snyk report
@@ -125,9 +121,8 @@ jobs:
           path: .
 
       - name: Trivy scan
-        uses: docker://aquasec/trivy:latest
-        with:
-          args: image --input docker-image.tar --format json --output trivy-report.json --severity HIGH,CRITICAL
+        run: |
+          docker run --rm -v $(pwd):/src aquasec/trivy:latest image --input /src/docker-image.tar --format json --output /src/trivy-report.json --severity HIGH,CRITICAL || SCAN_EXIT=$?
         continue-on-error: true
 
       - name: Check Trivy results
@@ -191,21 +186,22 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Deploy to staging
-        uses: docker://bitnami/kubectl:latest
-        env:
-          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG_DATA }}
-          TARGET_NAMESPACE: ${{ env.STAGING_NAMESPACE }}
-          IMAGE_TAG: ${{ env.IMAGE_TAG }}
-          NODE_PORT: ${{ env.NODE_PORT_STAGING }}
-        with:
-          args: |
-            mkdir -p ~/.kube
-            echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
-            CONTEXT=$(kubectl config get-contexts -o name | head -n1)
-            kubectl config use-context "$CONTEXT"
-            envsubst < k8s/deployment.yaml | kubectl apply -n "$TARGET_NAMESPACE" -f - --validate=false
-            envsubst < k8s/service.yaml | kubectl apply -n "$TARGET_NAMESPACE" -f - --validate=false
-            kubectl rollout status deployment/myapp -n "$TARGET_NAMESPACE"
+        run: |
+          docker run --rm -v $(pwd):/workspace \
+            -e KUBECONFIG_DATA=${{ secrets.KUBECONFIG_DATA }} \
+            -e TARGET_NAMESPACE=${{ env.STAGING_NAMESPACE }} \
+            -e IMAGE_TAG=${{ env.IMAGE_TAG }} \
+            -e NODE_PORT=${{ env.NODE_PORT_STAGING }} \
+            -e APP_PORT=${{ env.APP_PORT }} \
+            bitnami/kubectl:latest sh -c "
+              mkdir -p ~/.kube
+              echo \$KUBECONFIG_DATA | base64 -d > ~/.kube/config
+              CONTEXT=\$(kubectl config get-contexts -o name | head -n1)
+              kubectl config use-context \$CONTEXT
+              envsubst < /workspace/k8s/deployment.yaml | kubectl apply -n \$TARGET_NAMESPACE -f - --validate=false
+              envsubst < /workspace/k8s/service.yaml | kubectl apply -n \$TARGET_NAMESPACE -f - --validate=false
+              kubectl rollout status deployment/myapp -n \$TARGET_NAMESPACE
+            "
 
   security-scan:
     runs-on: ubuntu-latest
@@ -251,21 +247,22 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Promote to production
-        uses: docker://bitnami/kubectl:latest
-        env:
-          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG_DATA }}
-          TARGET_NAMESPACE: ${{ env.PROD_NAMESPACE }}
-          IMAGE_TAG: ${{ env.IMAGE_TAG }}
-          NODE_PORT: ${{ env.NODE_PORT_PROD }}
-        with:
-          args: |
-            mkdir -p ~/.kube
-            echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
-            CONTEXT=$(kubectl config get-contexts -o name | head -n1)
-            kubectl config use-context "$CONTEXT"
-            envsubst < k8s/deployment.yaml | kubectl apply -n "$TARGET_NAMESPACE" -f - --validate=false
-            envsubst < k8s/service.yaml | kubectl apply -n "$TARGET_NAMESPACE" -f - --validate=false
-            kubectl rollout status deployment/myapp -n "$TARGET_NAMESPACE"
+        run: |
+          docker run --rm -v $(pwd):/workspace \
+            -e KUBECONFIG_DATA=${{ secrets.KUBECONFIG_DATA }} \
+            -e TARGET_NAMESPACE=${{ env.PROD_NAMESPACE }} \
+            -e IMAGE_TAG=${{ env.IMAGE_TAG }} \
+            -e NODE_PORT=${{ env.NODE_PORT_PROD }} \
+            -e APP_PORT=${{ env.APP_PORT }} \
+            bitnami/kubectl:latest sh -c "
+              mkdir -p ~/.kube
+              echo \$KUBECONFIG_DATA | base64 -d > ~/.kube/config
+              CONTEXT=\$(kubectl config get-contexts -o name | head -n1)
+              kubectl config use-context \$CONTEXT
+              envsubst < /workspace/k8s/deployment.yaml | kubectl apply -n \$TARGET_NAMESPACE -f - --validate=false
+              envsubst < /workspace/k8s/service.yaml | kubectl apply -n \$TARGET_NAMESPACE -f - --validate=false
+              kubectl rollout status deployment/myapp -n \$TARGET_NAMESPACE
+            "
 
       - name: Create service info artifact
         run: |
