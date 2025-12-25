@@ -89,9 +89,10 @@ jobs:
 
       - name: Snyk (SCA)
         run: |
+          touch snyk-report.json
           docker run --rm -v $(pwd):/src \
             -e SNYK_TOKEN=${{ secrets.SNYK_TOKEN }} \
-            snyk/snyk:maven-3-jdk-17 sh -c "cd /src && snyk auth \$SNYK_TOKEN && snyk test --all-projects --json > snyk-report.json" || true
+            snyk/snyk:maven-3-jdk-17 sh -c "cd /src/medinsight-project-main && snyk auth \$SNYK_TOKEN && snyk test --all-projects --json-file=/src/snyk-report.json" || true
         continue-on-error: true
 
       - name: Upload Snyk report
@@ -115,14 +116,14 @@ jobs:
       - name: Build patient-service Docker image
         uses: docker/build-push-action@v5
         with:
-          context: medinsight-project-main/services/patient-service/patient-service  # Contexte pour patient-service
+          context: ./medinsight-project-main/services/patient-service/patient-service  # Contexte pour patient-service
           tags: ${{ env.IMAGE_TAG_PATIENT }}, patient-local:latest  # Tags pour patient-service
           outputs: type=docker,dest=patient-docker-image.tar  # Sauvegarder l'image patient
 
       - name: Build doctor-service Docker image
         uses: docker/build-push-action@v5
         with:
-          context: medinsight-project-main/services/doctor-service  # Contexte pour doctor-service
+          context: ./medinsight-project-main/services/doctor-service  # Contexte pour doctor-service
           tags: ${{ env.IMAGE_TAG_DOCTOR }}, doctor-local:latest  # Tags pour doctor-service
           outputs: type=docker,dest=doctor-docker-image.tar  # Sauvegarder l'image doctor
 
