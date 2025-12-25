@@ -91,7 +91,7 @@ jobs:
         run: |
           docker run --rm -v $(pwd):/src \
             -e SNYK_TOKEN=${{ secrets.SNYK_TOKEN }} \
-            node:18 sh -c "cd /src && npm install -g snyk && snyk auth \$SNYK_TOKEN && snyk test --all-projects --json > snyk-report.json" || true
+            snyk/snyk:maven-3-jdk-17 sh -c "cd /src && snyk auth \$SNYK_TOKEN && snyk test --all-projects --json > snyk-report.json" || true
         continue-on-error: true
 
       - name: Upload Snyk report
