@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: doctor-service
+  namespace: ${NAMESPACE}
+spec:
+  type: NodePort
+  ports:
+  - port: ${APP_PORT_DOCTOR}
+    targetPort: ${APP_PORT_DOCTOR}
+    nodePort: ${NODE_PORT_DOCTOR}
+  selector:
+    app: doctor-service

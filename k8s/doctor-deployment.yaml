@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: doctor-service
+  namespace: ${NAMESPACE}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: doctor-service
+  template:
+    metadata:
+      labels:
+        app: doctor-service
+    spec:
+      containers:
+      - name: doctor-service
+        image: ${IMAGE_TAG_DOCTOR}
+        ports:
+        - containerPort: ${APP_PORT_DOCTOR}
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
