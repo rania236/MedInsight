@@ -23,7 +23,7 @@ env:
   NODE_PORT_STAGING_DOCTOR: "30081"  # Port NodePort pour doctor staging
   NODE_PORT_PROD_PATIENT: "30082"  # Port NodePort pour patient prod
   NODE_PORT_PROD_DOCTOR: "30083"  # Port NodePort pour doctor prod
-  MINIKUBE_IP: "172.31.29.183"  # IP du master kubeadm
+  CLUSTER_IP: "172.31.29.183"  # IP du master kubeadm
   SONAR_USER_HOME: "${{ github.workspace }}/.sonar"  # Cache pour SonarQube
   GIT_DEPTH: 0  # Récupérer tout l'historique Git
 
@@ -311,7 +311,7 @@ jobs:
       - name: OWASP ZAP scan
         run: |
           echo "🔍 Testing target availability..."
-          curl -s --head --connect-timeout 30 "http://${{ env.MINIKUBE_IP }}:${{ env.NODE_PORT_STAGING }}" || echo "Target might be starting..."
+          curl -s --head --connect-timeout 30 "http://${{ env.CLUSTER_IP }}:${{ env.NODE_PORT_STAGING_PATIENT }}" || echo "Target might be starting..."
           
           echo "📦 Pulling ZAP image..."
           docker pull ghcr.io/zaproxy/zaproxy:stable
@@ -320,7 +320,7 @@ jobs:
           docker run --rm \
             -v $(pwd):/zap/wrk/:rw \
             -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
-            -t "http://${{ env.MINIKUBE_IP }}:${{ env.NODE_PORT_STAGING }}" \
+            -t "http://${{ env.CLUSTER_IP }}:${{ env.NODE_PORT_STAGING_PATIENT }}" \
             -m 10 \
             -g gen.conf \
             -r zap_report.html \
@@ -371,7 +371,7 @@ jobs:
 
       - name: Create service info artifact
         run: |
-          echo "APP_URL=http://${{ env.MINIKUBE_IP }}:${{ env.NODE_PORT_PROD }}" > service_info.env
+          echo "APP_URL=http://${{ env.CLUSTER_IP }}:${{ env.NODE_PORT_PROD_PATIENT }}" > service_info.env
 
       - name: Upload service info
         uses: actions/upload-artifact@v4
