@@ -14,10 +14,17 @@ spec:
         app: patient-service
     spec:
       containers:
-      - name: patient-service
-        image: ${IMAGE_TAG_PATIENT}
-        ports:
-        - containerPort: ${APP_PORT_PATIENT}
-        env:
-        - name: SPRING_PROFILES_ACTIVE
-          value: "prod"
+        - name: patient-service
+          image: ${IMAGE_TAG_PATIENT}
+          ports:
+            - containerPort: 8050
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1"

@@ -6,8 +6,8 @@ metadata:
 spec:
   type: NodePort
   ports:
-  - port: ${APP_PORT_DOCTOR}
-    targetPort: ${APP_PORT_DOCTOR}
-    nodePort: ${NODE_PORT_DOCTOR}
+  - port: 8082
+    targetPort: 8082
+    nodePort: 30002
   selector:
     app: doctor-service
