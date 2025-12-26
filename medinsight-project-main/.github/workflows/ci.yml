@@ -9,11 +9,10 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
-  workflow_dispatch:
 
 permissions:
-  contents: read
-  packages: write
+    contents: read
+    packages: write
 # Variables d'environnement globales utilisées dans les jobss
 env:
   IMAGE_TAG_PATIENT: ghcr.io/rania236/patient-service:${{ github.sha }}  # Tag pour patient-service
