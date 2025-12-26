@@ -16,7 +16,16 @@ spec:
       - name: myapp
         image: ${IMAGE_TAG}
         ports:
-        - containerPort: ${APP_PORT}
+        - containerPort: 8080
+          protocol: TCP
+          name: http
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "prod"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1"
