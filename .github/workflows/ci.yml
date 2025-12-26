@@ -10,7 +10,7 @@ on:
   pull_request:
     branches: [ master ]
 
-# Variables d'environnement globales utilisées dans les jobs
+# Variables d'environnement globales utilisées dans les jobss
 env:
   IMAGE_TAG_PATIENT: ghcr.io/rania236/patient-service:${{ github.sha }}  # Tag pour patient-service
   IMAGE_TAG_DOCTOR: ghcr.io/rania236/doctor-service:${{ github.sha }}  # Tag pour doctor-service
