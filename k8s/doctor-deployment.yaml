@@ -14,10 +14,17 @@ spec:
         app: doctor-service
     spec:
       containers:
-      - name: doctor-service
-        image: ${IMAGE_TAG_DOCTOR}
-        ports:
-        - containerPort: ${APP_PORT_DOCTOR}
-        env:
-        - name: SPRING_PROFILES_ACTIVE
-          value: "prod"
+        - name: doctor-service
+          image: ${IMAGE_TAG_DOCTOR}
+          ports:
+            - containerPort: 8082
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1"
