@@ -281,39 +281,87 @@ jobs:
         run: docker push ${{ env.IMAGE_TAG_DOCTOR }}
 
   # Job 6: Deploy to staging - Déploiement en environnement de staging
+  # deploy-to-staging:
+  #   runs-on: ubuntu-latest
+  #   needs: push
+  #   if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'  # Activé pour test en staging
+  #   environment: staging
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+
+  #     - name: Deploy to staging
+  #       run: |
+  #         docker run --rm -v $(pwd):/workspace \
+  #           -e KUBECONFIG_DATA=${{ secrets.KUBECONFIG_DATA }} \
+  #           -e TARGET_NAMESPACE=${{ env.STAGING_NAMESPACE }} \
+  #           -e NAMESPACE=${{ env.STAGING_NAMESPACE }} \
+  #           -e IMAGE_TAG_PATIENT=${{ env.IMAGE_TAG_PATIENT }} \
+  #           -e IMAGE_TAG_DOCTOR=${{ env.IMAGE_TAG_DOCTOR }} \
+  #           -e NODE_PORT_PATIENT=${{ env.NODE_PORT_STAGING_PATIENT }} \
+  #           -e NODE_PORT_DOCTOR=${{ env.NODE_PORT_STAGING_DOCTOR }} \
+  #           -e APP_PORT_PATIENT=${{ env.APP_PORT_PATIENT }} \
+  #           -e APP_PORT_DOCTOR=${{ env.APP_PORT_DOCTOR }} \
+  #           bitnami/kubectl:latest sh -c "
+  #             mkdir -p ~/.kube
+  #             echo \$KUBECONFIG_DATA | base64 -d > ~/.kube/config
+  #             CONTEXT=\$(kubectl config get-contexts -o name | head -n1)
+  #             kubectl config use-context \$CONTEXT
+  #             envsubst < /workspace/medinsight-project-main/k8s/patient-deployment.yaml | kubectl apply -n \$TARGET_NAMESPACE -f - --validate=false
+  #             envsubst < /workspace/medinsight-project-main/k8s/patient-service.yaml | kubectl apply -n \$TARGET_NAMESPACE -f - --validate=false
+  #             envsubst < /workspace/medinsight-project-main/k8s/doctor-deployment.yaml | kubectl apply -n \$TARGET_NAMESPACE -f - --validate=false
+  #             envsubst < /workspace/medinsight-project-main/k8s/doctor-service.yaml | kubectl apply -n \$TARGET_NAMESPACE -f - --validate=false
+  #             kubectl rollout status deployment/patient-service -n \$TARGET_NAMESPACE
+  #             kubectl rollout status deployment/doctor-service -n \$TARGET_NAMESPACE
+  #           "
   deploy-to-staging:
     runs-on: ubuntu-latest
     needs: push
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'  # Activé pour test en staging
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     environment: staging
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to staging
+      # 1️⃣ Installer kubectl
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.29.0
+
+      # 2️⃣ Configurer l'accès au cluster kubeadm (EC2)
+      - name: Configure kubeconfig
+        env:
+          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG_DATA }}
         run: |
-          docker run --rm -v $(pwd):/workspace \
-            -e KUBECONFIG_DATA=${{ secrets.KUBECONFIG_DATA }} \
-            -e TARGET_NAMESPACE=${{ env.STAGING_NAMESPACE }} \
-            -e NAMESPACE=${{ env.STAGING_NAMESPACE }} \
-            -e IMAGE_TAG_PATIENT=${{ env.IMAGE_TAG_PATIENT }} \
-            -e IMAGE_TAG_DOCTOR=${{ env.IMAGE_TAG_DOCTOR }} \
-            -e NODE_PORT_PATIENT=${{ env.NODE_PORT_STAGING_PATIENT }} \
-            -e NODE_PORT_DOCTOR=${{ env.NODE_PORT_STAGING_DOCTOR }} \
-            -e APP_PORT_PATIENT=${{ env.APP_PORT_PATIENT }} \
-            -e APP_PORT_DOCTOR=${{ env.APP_PORT_DOCTOR }} \
-            bitnami/kubectl:latest sh -c "
-              mkdir -p ~/.kube
-              echo \$KUBECONFIG_DATA | base64 -d > ~/.kube/config
-              CONTEXT=\$(kubectl config get-contexts -o name | head -n1)
-              kubectl config use-context \$CONTEXT
-              envsubst < /workspace/medinsight-project-main/k8s/patient-deployment.yaml | kubectl apply -n \$TARGET_NAMESPACE -f - --validate=false
-              envsubst < /workspace/medinsight-project-main/k8s/patient-service.yaml | kubectl apply -n \$TARGET_NAMESPACE -f - --validate=false
-              envsubst < /workspace/medinsight-project-main/k8s/doctor-deployment.yaml | kubectl apply -n \$TARGET_NAMESPACE -f - --validate=false
-              envsubst < /workspace/medinsight-project-main/k8s/doctor-service.yaml | kubectl apply -n \$TARGET_NAMESPACE -f - --validate=false
-              kubectl rollout status deployment/patient-service -n \$TARGET_NAMESPACE
-              kubectl rollout status deployment/doctor-service -n \$TARGET_NAMESPACE
-            "
+          mkdir -p ~/.kube
+          echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
+          kubectl cluster-info
+          kubectl get nodes
+
+      # 3️⃣ Déployer les microservices en staging
+      - name: Deploy to staging
+        env:
+          STAGING_NAMESPACE: ${{ env.STAGING_NAMESPACE }}
+          IMAGE_TAG_PATIENT: ${{ env.IMAGE_TAG_PATIENT }}
+          IMAGE_TAG_DOCTOR: ${{ env.IMAGE_TAG_DOCTOR }}
+          APP_PORT_PATIENT: ${{ env.APP_PORT_PATIENT }}
+          APP_PORT_DOCTOR: ${{ env.APP_PORT_DOCTOR }}
+          NODE_PORT_PATIENT: ${{ env.NODE_PORT_STAGING_PATIENT }}
+          NODE_PORT_DOCTOR: ${{ env.NODE_PORT_STAGING_DOCTOR }}
+        run: |
+          echo "🚀 Deploy patient-service"
+          envsubst < medinsight-project-main/k8s/patient-deployment.yaml | kubectl apply -n $STAGING_NAMESPACE -f -
+          envsubst < medinsight-project-main/k8s/patient-service.yaml | kubectl apply -n $STAGING_NAMESPACE -f -
+
+          echo "🚀 Deploy doctor-service"
+          envsubst < medinsight-project-main/k8s/doctor-deployment.yaml | kubectl apply -n $STAGING_NAMESPACE -f -
+          envsubst < medinsight-project-main/k8s/doctor-service.yaml | kubectl apply -n $STAGING_NAMESPACE -f -
+
+          echo "⏳ Waiting for rollout..."
+          kubectl rollout status deployment/patient-service -n $STAGING_NAMESPACE
+          kubectl rollout status deployment/doctor-service -n $STAGING_NAMESPACE
 
   # Job 7: Security-scan - Scan de sécurité dynamique avec OWASP ZAP
   security-scan:
