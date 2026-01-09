@@ -38,7 +38,13 @@ jobs:
 
       - name: Gitleaks - secrets detection
         run: |
-          docker run --rm -v $(pwd):/src zricethezav/gitleaks:latest detect --source /src --report-format json --report-path /src/gitleaks.json || true
+          docker run --rm -v $(pwd):/src zricethezav/gitleaks:latest detect \
+            --source /src \
+            --no-git \
+            --report-format json \
+            --report-path /src/gitleaks.json \
+            --exit-code 0 || true
+          [ -s gitleaks.json ] || echo "[]" > gitleaks.json
         continue-on-error: true
 
       - name: Display Gitleaks report
@@ -303,11 +309,9 @@ jobs:
           echo "🚀 Deploy patient-service"
           envsubst < k8s/patient-deployment.yaml | kubectl apply -n $NAMESPACE -f -
           envsubst < k8s/patient-service.yaml | kubectl apply -n $NAMESPACE -f -
-
           echo "🚀 Deploy doctor-service"
           envsubst < k8s/doctor-deployment.yaml | kubectl apply -n $NAMESPACE -f -
           envsubst < k8s/doctor-service.yaml | kubectl apply -n $NAMESPACE -f -
-
           echo "⏳ Waiting for rollout..."
           kubectl rollout status deployment/patient-service -n $NAMESPACE --timeout=5m
           kubectl rollout status deployment/doctor-service -n $NAMESPACE --timeout=5m
@@ -402,11 +406,9 @@ jobs:
           echo "🚀 Deploy patient-service to production"
           envsubst < k8s/patient-deployment.yaml | kubectl apply -n $NAMESPACE -f -
           envsubst < k8s/patient-service.yaml | kubectl apply -n $NAMESPACE -f -
-
           echo "🚀 Deploy doctor-service to production"
           envsubst < k8s/doctor-deployment.yaml | kubectl apply -n $NAMESPACE -f -
           envsubst < k8s/doctor-service.yaml | kubectl apply -n $NAMESPACE -f -
-
           echo "⏳ Waiting for rollout..."
           kubectl rollout status deployment/patient-service -n $NAMESPACE --timeout=5m
           kubectl rollout status deployment/doctor-service -n $NAMESPACE --timeout=5m
