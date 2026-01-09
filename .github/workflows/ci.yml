@@ -93,14 +93,13 @@ jobs:
           echo "SONAR_PROJECT_KEY length: ${#SONAR_KEY}"
           echo "SONAR_HOST_URL length: ${#SONAR_URL}"
           
-          # Show first 3 chars of org and key for debugging (not sensitive)
-          echo "SONAR_ORGANIZATION starts with: ${SONAR_ORG:0:3}..."
-          echo "SONAR_PROJECT_KEY starts with: ${SONAR_KEY:0:3}..."
-          echo "SONAR_HOST_URL: $SONAR_URL"
+          # Show more chars for debugging
+          echo "SONAR_ORGANIZATION value: ${SONAR_ORG}"
+          echo "SONAR_PROJECT_KEY value: ${SONAR_KEY}"
+          echo "SONAR_HOST_URL value: ${SONAR_URL}"
           
           if [ -z "$SONAR_TOKEN" ] || [ -z "$SONAR_ORG" ] || [ -z "$SONAR_KEY" ]; then
             echo "❌ Missing required SonarCloud secrets!"
-            echo "Please configure: SONAR_TOKEN, SONAR_ORGANIZATION, SONAR_PROJECT_KEY"
             exit 1
           fi
           
