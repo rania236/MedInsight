@@ -1,7 +1,7 @@
 name: CI/CD Pipeline
 
-# Ce workflow définit un pipeline CI/CD complet pour l'application Java Spring Boot
-# Il s'exécute sur les push et PR vers main/master
+# This workflow defines a complete CI/CD pipeline for the Java Spring Boot application
+# It runs on push and pull requests to main/master branches
 
 on:
   push:
@@ -13,6 +13,7 @@ permissions:
   contents: read
   packages: write
 
+# Environment variables used across all jobs
 env:
   IMAGE_TAG_PATIENT: ghcr.io/${{ github.repository_owner }}/patient-service:${{ github.sha }}
   IMAGE_TAG_DOCTOR: ghcr.io/${{ github.repository_owner }}/doctor-service:${{ github.sha }}
@@ -27,16 +28,19 @@ env:
   NODE_PORT_PROD_DOCTOR: "30083"
 
 jobs:
-  # Job 1: Pré-vérification - Détection de secrets
+  # Job 1: Pre-check - Secret detection using Gitleaks
+  # Scans the codebase for accidentally committed secrets (API keys, passwords, etc.)
   precheck:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Full history needed for proper secret scanning
 
       - name: Gitleaks - secrets detection
+        # Run Gitleaks to detect any leaked secrets in the repository
+        # Uses --no-git to scan files directly, --exit-code 0 to not fail on findings
         run: |
           docker run --rm -v $(pwd):/src zricethezav/gitleaks:latest detect \
             --source /src \
@@ -45,28 +49,30 @@ jobs:
             --report-path /src/gitleaks.json \
             --exit-code 0 || true
           [ -s gitleaks.json ] || echo "[]" > gitleaks.json
-        continue-on-error: true
 
       - name: Display Gitleaks report
+        # Show the contents of the report in the workflow logs
         run: |
           if [ -f gitleaks.json ]; then
             cat gitleaks.json
           else
             echo "No gitleaks report generated"
           fi
-        continue-on-error: true
 
       - name: Upload Gitleaks report
+        # Save the report as an artifact for later review
         uses: actions/upload-artifact@v4
         with:
           name: gitleaks-report
           path: gitleaks.json
         if: always()
 
-  # Job 2: Scan - Analyse de sécurité et qualité du code
+  # Job 2: Scan - Security and code quality analysis
+  # Performs SAST (Static Application Security Testing) with SonarQube
+  # and SCA (Software Composition Analysis) with Snyk
   scan:
     runs-on: ubuntu-latest
-    needs: precheck
+    needs: precheck  # Wait for precheck to complete
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -74,6 +80,7 @@ jobs:
           fetch-depth: 0
 
       - name: SonarQube (SAST)
+        # Static code analysis to find bugs, vulnerabilities, and code smells
         run: |
           docker run --rm -v $(pwd):/usr/src \
             -e SONAR_TOKEN=${{ secrets.SONAR_TOKEN }} \
@@ -89,9 +96,9 @@ jobs:
             -Dsonar.java.source=17 \
             -Dsonar.java.target=17 \
             -Dsonar.exclusions=**/test/**
-        continue-on-error: true
 
       - name: Snyk (SCA)
+        # Scan dependencies for known vulnerabilities
         run: |
           touch snyk-report.json
           docker run --rm -v $(pwd):/src \
@@ -106,18 +113,21 @@ jobs:
           path: snyk-report.json
         if: always()
 
-  # Job 3: Build - Construction de l'image Docker
+  # Job 3: Build - Build Docker images for both services
+  # Creates containerized versions of patient-service and doctor-service
   build:
     runs-on: ubuntu-latest
-    needs: scan
+    needs: scan  # Wait for security scans to complete
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
+        # Enable advanced Docker build features
         uses: docker/setup-buildx-action@v3
 
       - name: Build patient-service Docker image
+        # Build and export the patient service image as a tar file
         uses: docker/build-push-action@v5
         with:
           context: ./medinsight-project-main/services/patient-service
@@ -125,6 +135,7 @@ jobs:
           outputs: type=docker,dest=patient-docker-image.tar
 
       - name: Build doctor-service Docker image
+        # Build and export the doctor service image as a tar file
         uses: docker/build-push-action@v5
         with:
           context: ./medinsight-project-main/services/doctor-service
@@ -132,6 +143,7 @@ jobs:
           outputs: type=docker,dest=doctor-docker-image.tar
 
       - name: Upload patient Docker image artifact
+        # Save the image for use in subsequent jobs
         uses: actions/upload-artifact@v4
         with:
           name: patient-docker-image
@@ -143,7 +155,8 @@ jobs:
           name: doctor-docker-image
           path: doctor-docker-image.tar
 
-  # Job 4: Image-scan - Scan de vulnérabilités de l'image Docker
+  # Job 4: Image-scan - Scan Docker images for vulnerabilities using Trivy
+  # Checks for HIGH and CRITICAL vulnerabilities in the container images
   image-scan:
     runs-on: ubuntu-latest
     needs: build
@@ -164,20 +177,24 @@ jobs:
           path: .
 
       - name: Load patient Docker image
+        # Load the image into Docker daemon for scanning
         run: docker load < patient-docker-image.tar
 
       - name: Load doctor Docker image
         run: docker load < doctor-docker-image.tar
 
       - name: Trivy scan patient-service
+        # Scan for vulnerabilities in the patient service container
         run: |
           docker run --rm -v $(pwd):/reports aquasec/trivy:latest image patient-local:latest --format json --output /reports/trivy-patient-report.json --severity HIGH,CRITICAL || true
 
       - name: Trivy scan doctor-service
+        # Scan for vulnerabilities in the doctor service container
         run: |
           docker run --rm -v $(pwd):/reports aquasec/trivy:latest image doctor-local:latest --format json --output /reports/trivy-doctor-report.json --severity HIGH,CRITICAL || true
 
       - name: Check Trivy results for patient-service
+        # Parse results and fail if CRITICAL vulnerabilities are found
         run: |
           if [ -f trivy-patient-report.json ]; then
             cat trivy-patient-report.json
@@ -219,7 +236,8 @@ jobs:
           path: trivy-doctor-report.json
         if: always()
 
-  # Job 5: Push - Push de l'image vers le registre
+  # Job 5: Push - Push Docker images to GitHub Container Registry
+  # Only runs on main/master branch (not on PRs)
   push:
     runs-on: ubuntu-latest
     needs: image-scan
@@ -250,6 +268,7 @@ jobs:
         run: docker load < doctor-docker-image.tar
 
       - name: Tag patient image
+        # Tag with the full GHCR path including commit SHA
         run: docker tag patient-local:latest ${{ env.IMAGE_TAG_PATIENT }}
 
       - name: Tag doctor image
@@ -268,12 +287,13 @@ jobs:
       - name: Push doctor image
         run: docker push ${{ env.IMAGE_TAG_DOCTOR }}
 
-  # Job 6: Deploy to staging - Déploiement en environnement de staging
+  # Job 6: Deploy to staging - Deploy to staging environment
+  # Uses kubectl to deploy to Kubernetes cluster
   deploy-to-staging:
     runs-on: ubuntu-latest
     needs: push
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-    environment: staging
+    environment: staging  # GitHub environment for staging (can have protection rules)
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -284,6 +304,7 @@ jobs:
           version: v1.29.0
 
       - name: Configure kubeconfig
+        # Decode and setup kubeconfig from secret
         env:
           KUBECONFIG_DATA: ${{ secrets.KUBECONFIG_DATA }}
         run: |
@@ -297,6 +318,7 @@ jobs:
           kubectl create namespace ${{ env.STAGING_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy to staging
+        # Apply Kubernetes manifests with environment variable substitution
         env:
           NAMESPACE: ${{ env.STAGING_NAMESPACE }}
           IMAGE_TAG_PATIENT: ${{ env.IMAGE_TAG_PATIENT }}
@@ -316,7 +338,8 @@ jobs:
           kubectl rollout status deployment/patient-service -n $NAMESPACE --timeout=5m
           kubectl rollout status deployment/doctor-service -n $NAMESPACE --timeout=5m
 
-  # Job 7: Security-scan - Scan de sécurité dynamique avec OWASP ZAP
+  # Job 7: Security-scan - Dynamic security scan with OWASP ZAP
+  # Performs DAST (Dynamic Application Security Testing) against the staging environment
   security-scan:
     runs-on: ubuntu-latest
     needs: deploy-to-staging
@@ -338,6 +361,7 @@ jobs:
           echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
 
       - name: Port forward and run OWASP ZAP scan
+        # Forward the staging service port and run ZAP baseline scan
         run: |
           echo "🔍 Starting port-forward..."
           kubectl port-forward -n ${{ env.STAGING_NAMESPACE }} svc/patient-service 8080:${{ env.APP_PORT_PATIENT }} &
@@ -367,12 +391,13 @@ jobs:
           path: zap_report.*
         if: always()
 
-  # Job 8: Promote to prod - Promotion en production (Manual approval required)
+  # Job 8: Promote to prod - Deploy to production (requires manual approval)
+  # This job uses the 'production' environment which should have protection rules configured
   promote-to-prod:
     runs-on: ubuntu-latest
     needs: security-scan
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-    environment: production
+    environment: production  # GitHub environment with manual approval required
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -394,6 +419,7 @@ jobs:
           kubectl create namespace ${{ env.PROD_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy to production
+        # Apply the same manifests to production namespace
         env:
           NAMESPACE: ${{ env.PROD_NAMESPACE }}
           IMAGE_TAG_PATIENT: ${{ env.IMAGE_TAG_PATIENT }}
@@ -414,6 +440,7 @@ jobs:
           kubectl rollout status deployment/doctor-service -n $NAMESPACE --timeout=5m
 
       - name: Create production info artifact
+        # Generate a summary file with deployment information
         run: |
           cat > service_info.env <<EOF
           PATIENT_SERVICE_URL=http://$(kubectl get svc patient-service -n ${{ env.PROD_NAMESPACE }} -o jsonpath='{.spec.clusterIP}'):${{ env.APP_PORT_PATIENT }}
