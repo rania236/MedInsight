@@ -1,3 +1,21 @@
+# PersistentVolume for patient-db (hostPath on node)
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: patient-db-pv-${NAMESPACE}
+  labels:
+    app: patient-db
+    namespace: ${NAMESPACE}
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /data/patient-db-${NAMESPACE}
+    type: DirectoryOrCreate
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -9,6 +27,10 @@ spec:
   resources:
     requests:
       storage: 1Gi
+  selector:
+    matchLabels:
+      app: patient-db
+      namespace: ${NAMESPACE}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -37,6 +59,8 @@ spec:
               value: "patient_pass"
             - name: POSTGRES_DB
               value: "patient_db"
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           volumeMounts:
             - name: patient-db-storage
               mountPath: /var/lib/postgresql/data
@@ -58,9 +82,9 @@ metadata:
   name: patient-db
   namespace: ${NAMESPACE}
 spec:
-  type: ClusterIP
+  selector:
+    app: patient-db
   ports:
     - port: 5432
       targetPort: 5432
-  selector:
-    app: patient-db
+  type: ClusterIP
