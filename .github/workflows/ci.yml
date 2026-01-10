@@ -410,7 +410,46 @@ jobs:
           kubectl rollout status deployment/patient-service -n $NAMESPACE --timeout=5m
           kubectl rollout status deployment/doctor-service -n $NAMESPACE --timeout=5m
 
-  # Job 7: Security-scan - Dynamic security scan with OWASP ZAP
+  # Job 7: Ansible Health Check - Verify deployment with Ansible
+  ansible-health-check:
+    runs-on: ubuntu-latest
+    needs: deploy-to-staging
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Ansible
+        run: |
+          pip install ansible kubernetes
+          ansible --version
+
+      - name: Setup kubeconfig
+        env:
+          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG_DATA }}
+        run: |
+          mkdir -p ~/.kube
+          echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
+
+      - name: Run Ansible Health Check
+        working-directory: ansible
+        run: |
+          echo "🏥 Running Ansible health check..."
+          ansible-playbook playbooks/check-cluster-health.yml
+
+      - name: Upload health report
+        uses: actions/upload-artifact@v4
+        with:
+          name: health-report-${{ github.run_number }}
+          path: ansible/reports/
+          if-no-files-found: ignore
+
+  # Job 8: Security-scan - Dynamic security scan with OWASP ZAP
   # Performs DAST (Dynamic Application Security Testing) against the staging environment
   security-scan:
     runs-on: ubuntu-latest
@@ -463,7 +502,7 @@ jobs:
           path: zap_report.*
         if: always()
 
-  # Job 8: Promote to prod - Deploy to production (requires manual approval)
+  # Job 9: Promote to prod - Deploy to production (requires manual approval)
   # This job uses the 'production' environment which should have protection rules configured
   promote-to-prod:
     runs-on: ubuntu-latest
