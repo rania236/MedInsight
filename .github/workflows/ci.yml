@@ -357,13 +357,19 @@ jobs:
           NAMESPACE: ${{ env.STAGING_NAMESPACE }}
         run: |
           echo "🧹 Cleaning old database resources..."
-          kubectl delete pvc patient-db-pvc -n $NAMESPACE --ignore-not-found
-          kubectl delete pvc doctor-db-pvc -n $NAMESPACE --ignore-not-found
-          kubectl delete pv patient-db-pv-$NAMESPACE --ignore-not-found
-          kubectl delete pv doctor-db-pv-$NAMESPACE --ignore-not-found
-          kubectl delete deployment patient-db -n $NAMESPACE --ignore-not-found
-          kubectl delete deployment doctor-db -n $NAMESPACE --ignore-not-found
-          sleep 5
+          # Delete deployments first (stops pods using PVCs)
+          kubectl delete deployment patient-db -n $NAMESPACE --ignore-not-found --timeout=60s || true
+          kubectl delete deployment doctor-db -n $NAMESPACE --ignore-not-found --timeout=60s || true
+          # Wait for pods to terminate
+          kubectl wait --for=delete pod -l app=patient-db -n $NAMESPACE --timeout=60s || true
+          kubectl wait --for=delete pod -l app=doctor-db -n $NAMESPACE --timeout=60s || true
+          # Now delete PVCs (no longer in use)
+          kubectl delete pvc patient-db-pvc -n $NAMESPACE --ignore-not-found --timeout=30s || true
+          kubectl delete pvc doctor-db-pvc -n $NAMESPACE --ignore-not-found --timeout=30s || true
+          # Finally delete PVs
+          kubectl delete pv patient-db-pv-$NAMESPACE --ignore-not-found --timeout=30s || true
+          kubectl delete pv doctor-db-pv-$NAMESPACE --ignore-not-found --timeout=30s || true
+          echo "✅ Cleanup complete"
 
       - name: Deploy databases
         env:
@@ -495,13 +501,19 @@ jobs:
           NAMESPACE: ${{ env.PROD_NAMESPACE }}
         run: |
           echo "🧹 Cleaning old database resources..."
-          kubectl delete pvc patient-db-pvc -n $NAMESPACE --ignore-not-found
-          kubectl delete pvc doctor-db-pvc -n $NAMESPACE --ignore-not-found
-          kubectl delete pv patient-db-pv-$NAMESPACE --ignore-not-found
-          kubectl delete pv doctor-db-pv-$NAMESPACE --ignore-not-found
-          kubectl delete deployment patient-db -n $NAMESPACE --ignore-not-found
-          kubectl delete deployment doctor-db -n $NAMESPACE --ignore-not-found
-          sleep 5
+          # Delete deployments first (stops pods using PVCs)
+          kubectl delete deployment patient-db -n $NAMESPACE --ignore-not-found --timeout=60s || true
+          kubectl delete deployment doctor-db -n $NAMESPACE --ignore-not-found --timeout=60s || true
+          # Wait for pods to terminate
+          kubectl wait --for=delete pod -l app=patient-db -n $NAMESPACE --timeout=60s || true
+          kubectl wait --for=delete pod -l app=doctor-db -n $NAMESPACE --timeout=60s || true
+          # Now delete PVCs (no longer in use)
+          kubectl delete pvc patient-db-pvc -n $NAMESPACE --ignore-not-found --timeout=30s || true
+          kubectl delete pvc doctor-db-pvc -n $NAMESPACE --ignore-not-found --timeout=30s || true
+          # Finally delete PVs
+          kubectl delete pv patient-db-pv-$NAMESPACE --ignore-not-found --timeout=30s || true
+          kubectl delete pv doctor-db-pv-$NAMESPACE --ignore-not-found --timeout=30s || true
+          echo "✅ Cleanup complete"
 
       - name: Deploy databases to production
         env:
