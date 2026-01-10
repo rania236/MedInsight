@@ -1,33 +1,38 @@
-name: Ansible Operations
+name: Ansible Operations (Local Only)
 
 # Workflow pour les opérations Ansible (maintenance, backup, health checks)
-# Peut être déclenché manuellement ou planifié
+# ⚠️ DÉSACTIVÉ : Cluster K8s privé, inaccessible depuis GitHub Actions
+# À utiliser localement via: ansible-playbook playbooks/check-cluster-health.yml
+
+# on:
+#   # Déclenchement manuel avec options
+#   workflow_dispatch:
+#     inputs:
+#       operation:
+#         description: 'Opération à exécuter'
+#         required: true
+#         type: choice
+#         options:
+#           - health-check
+#           - backup-databases
+#           - deploy-staging
+#           - deploy-prod
+#       environment:
+#         description: 'Environnement cible'
+#         required: true
+#         default: 'staging'
+#         type: choice
+#         options:
+#           - staging
+#           - prod
+#
+#   # Backup automatique tous les jours à 2h du matin
+#   schedule:
+#     - cron: '0 2 * * *'
 
 on:
-  # Déclenchement manuel avec options
+  # Placeholder pour éviter l'erreur "no events"
   workflow_dispatch:
-    inputs:
-      operation:
-        description: 'Opération à exécuter'
-        required: true
-        type: choice
-        options:
-          - health-check
-          - backup-databases
-          - deploy-staging
-          - deploy-prod
-      environment:
-        description: 'Environnement cible'
-        required: true
-        default: 'staging'
-        type: choice
-        options:
-          - staging
-          - prod
-
-  # Backup automatique tous les jours à 2h du matin
-  schedule:
-    - cron: '0 2 * * *'
 
 env:
   ANSIBLE_HOST_KEY_CHECKING: 'false'
