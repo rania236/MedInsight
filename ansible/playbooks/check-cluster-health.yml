@@ -3,10 +3,15 @@
 # Exécute kubectl localement avec le kubeconfig configuré
 # Usage: ansible-playbook playbooks/check-cluster-health.yml
 
-- name: Check Kubernetes cluster health
   hosts: localhost
   connection: local
   gather_facts: no
+
+  vars:
+    kubeconfig_path: "{{ lookup('env','KUBECONFIG') | default('~/.kube/config', true) }}"
+
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
   
   vars:
     namespaces:
