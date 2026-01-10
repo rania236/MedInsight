@@ -8,6 +8,6 @@ spec:
   ports:
   - port: 8050
     targetPort: 8050
-    nodePort: 30080
+    nodePort: ${NODE_PORT_PATIENT}
   selector:
     app: patient-service
