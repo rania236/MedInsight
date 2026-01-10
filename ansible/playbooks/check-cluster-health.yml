@@ -3,21 +3,19 @@
 # Exécute kubectl localement avec le kubeconfig configuré
 # Usage: ansible-playbook playbooks/check-cluster-health.yml
 
-  hosts: localhost
+- hosts: localhost
   connection: local
   gather_facts: no
 
   vars:
     kubeconfig_path: "{{ lookup('env','KUBECONFIG') | default('~/.kube/config', true) }}"
+    namespaces:
+      - medinsight-staging
+      - medinsight-prod
 
   environment:
     KUBECONFIG: "{{ kubeconfig_path }}"
   
-  vars:
-    namespaces:
-      - medinsight-staging
-      - medinsight-prod
-    
   tasks:
     - name: Ensure reports directory exists
       file:
