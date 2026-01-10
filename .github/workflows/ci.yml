@@ -352,6 +352,19 @@ jobs:
             --docker-username=${{ github.actor }} \
             --docker-password=$GHCR_PAT
 
+      - name: Deploy databases
+        env:
+          NAMESPACE: ${{ env.STAGING_NAMESPACE }}
+        run: |
+          echo "🗄️ Deploy patient-db"
+          envsubst < k8s/patient-db.yaml | kubectl apply -n $NAMESPACE -f -
+          echo "🗄️ Deploy doctor-db"
+          envsubst < k8s/doctor-db.yaml | kubectl apply -n $NAMESPACE -f -
+          echo "⏳ Waiting for databases to be ready..."
+          kubectl rollout status deployment/patient-db -n $NAMESPACE --timeout=3m
+          kubectl rollout status deployment/doctor-db -n $NAMESPACE --timeout=3m
+          sleep 10
+
       - name: Deploy to staging
         # Apply Kubernetes manifests with environment variable substitution
         env:
@@ -463,6 +476,19 @@ jobs:
             --docker-server=ghcr.io \
             --docker-username=${{ github.actor }} \
             --docker-password=$GHCR_PAT
+
+      - name: Deploy databases to production
+        env:
+          NAMESPACE: ${{ env.PROD_NAMESPACE }}
+        run: |
+          echo "🗄️ Deploy patient-db to production"
+          envsubst < k8s/patient-db.yaml | kubectl apply -n $NAMESPACE -f -
+          echo "🗄️ Deploy doctor-db to production"
+          envsubst < k8s/doctor-db.yaml | kubectl apply -n $NAMESPACE -f -
+          echo "⏳ Waiting for databases to be ready..."
+          kubectl rollout status deployment/patient-db -n $NAMESPACE --timeout=3m
+          kubectl rollout status deployment/doctor-db -n $NAMESPACE --timeout=3m
+          sleep 10
 
       - name: Deploy to production
         # Apply the same manifests to production namespace
