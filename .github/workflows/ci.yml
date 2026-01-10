@@ -341,6 +341,17 @@ jobs:
         run: |
           kubectl create namespace ${{ env.STAGING_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Create GHCR pull secret
+        env:
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+        run: |
+          kubectl delete secret ghcr-secret -n ${{ env.STAGING_NAMESPACE }} --ignore-not-found
+          kubectl create secret docker-registry ghcr-secret \
+            --namespace=${{ env.STAGING_NAMESPACE }} \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=$GHCR_PAT
+
       - name: Deploy to staging
         # Apply Kubernetes manifests with environment variable substitution
         env:
@@ -441,6 +452,17 @@ jobs:
       - name: Create prod namespace if not exists
         run: |
           kubectl create namespace ${{ env.PROD_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create GHCR pull secret for production
+        env:
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+        run: |
+          kubectl delete secret ghcr-secret -n ${{ env.PROD_NAMESPACE }} --ignore-not-found
+          kubectl create secret docker-registry ghcr-secret \
+            --namespace=${{ env.PROD_NAMESPACE }} \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=$GHCR_PAT
 
       - name: Deploy to production
         # Apply the same manifests to production namespace

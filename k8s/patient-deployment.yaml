@@ -13,6 +13,8 @@ spec:
       labels:
         app: patient-service
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: patient-service
           image: ${IMAGE_TAG_PATIENT}
