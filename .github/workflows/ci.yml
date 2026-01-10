@@ -353,11 +353,11 @@ jobs:
           NODE_PORT_DOCTOR: ${{ env.NODE_PORT_STAGING_DOCTOR }}
         run: |
           echo "🚀 Deploy patient-service"
-          envsubst < medinsight-project-main/k8s/patient-deployment.yaml | kubectl apply -n $NAMESPACE -f -
-          envsubst < medinsight-project-main/k8s/patient-service.yaml | kubectl apply -n $NAMESPACE -f -
+          envsubst < k8s/patient-deployment.yaml | kubectl apply -n $NAMESPACE -f -
+          envsubst < k8s/patient-service.yaml | kubectl apply -n $NAMESPACE -f -
           echo "🚀 Deploy doctor-service"
-          envsubst < medinsight-project-main/k8s/doctor-deployment.yaml | kubectl apply -n $NAMESPACE -f -
-          envsubst < medinsight-project-main/k8s/doctor-service.yaml | kubectl apply -n $NAMESPACE -f -
+          envsubst < k8s/doctor-deployment.yaml | kubectl apply -n $NAMESPACE -f -
+          envsubst < k8s/doctor-service.yaml | kubectl apply -n $NAMESPACE -f -
           echo "⏳ Waiting for rollout..."
           kubectl rollout status deployment/patient-service -n $NAMESPACE --timeout=5m
           kubectl rollout status deployment/doctor-service -n $NAMESPACE --timeout=5m
@@ -454,11 +454,11 @@ jobs:
           NODE_PORT_DOCTOR: ${{ env.NODE_PORT_PROD_DOCTOR }}
         run: |
           echo "🚀 Deploy patient-service to production"
-          envsubst < medinsight-project-main/k8s/patient-deployment.yaml | kubectl apply -n $NAMESPACE -f -
-          envsubst < medinsight-project-main/k8s/patient-service.yaml | kubectl apply -n $NAMESPACE -f -
+          envsubst < k8s/patient-deployment.yaml | kubectl apply -n $NAMESPACE -f -
+          envsubst < k8s/patient-service.yaml | kubectl apply -n $NAMESPACE -f -
           echo "🚀 Deploy doctor-service to production"
-          envsubst < medinsight-project-main/k8s/doctor-deployment.yaml | kubectl apply -n $NAMESPACE -f -
-          envsubst < medinsight-project-main/k8s/doctor-service.yaml | kubectl apply -n $NAMESPACE -f -
+          envsubst < k8s/doctor-deployment.yaml | kubectl apply -n $NAMESPACE -f -
+          envsubst < k8s/doctor-service.yaml | kubectl apply -n $NAMESPACE -f -
           echo "⏳ Waiting for rollout..."
           kubectl rollout status deployment/patient-service -n $NAMESPACE --timeout=5m
           kubectl rollout status deployment/doctor-service -n $NAMESPACE --timeout=5m
