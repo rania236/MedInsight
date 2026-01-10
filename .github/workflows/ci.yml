@@ -352,6 +352,19 @@ jobs:
             --docker-username=${{ github.actor }} \
             --docker-password=$GHCR_PAT
 
+      - name: Clean old database resources
+        env:
+          NAMESPACE: ${{ env.STAGING_NAMESPACE }}
+        run: |
+          echo "🧹 Cleaning old database resources..."
+          kubectl delete pvc patient-db-pvc -n $NAMESPACE --ignore-not-found
+          kubectl delete pvc doctor-db-pvc -n $NAMESPACE --ignore-not-found
+          kubectl delete pv patient-db-pv-$NAMESPACE --ignore-not-found
+          kubectl delete pv doctor-db-pv-$NAMESPACE --ignore-not-found
+          kubectl delete deployment patient-db -n $NAMESPACE --ignore-not-found
+          kubectl delete deployment doctor-db -n $NAMESPACE --ignore-not-found
+          sleep 5
+
       - name: Deploy databases
         env:
           NAMESPACE: ${{ env.STAGING_NAMESPACE }}
@@ -476,6 +489,19 @@ jobs:
             --docker-server=ghcr.io \
             --docker-username=${{ github.actor }} \
             --docker-password=$GHCR_PAT
+
+      - name: Clean old database resources in production
+        env:
+          NAMESPACE: ${{ env.PROD_NAMESPACE }}
+        run: |
+          echo "🧹 Cleaning old database resources..."
+          kubectl delete pvc patient-db-pvc -n $NAMESPACE --ignore-not-found
+          kubectl delete pvc doctor-db-pvc -n $NAMESPACE --ignore-not-found
+          kubectl delete pv patient-db-pv-$NAMESPACE --ignore-not-found
+          kubectl delete pv doctor-db-pv-$NAMESPACE --ignore-not-found
+          kubectl delete deployment patient-db -n $NAMESPACE --ignore-not-found
+          kubectl delete deployment doctor-db -n $NAMESPACE --ignore-not-found
+          sleep 5
 
       - name: Deploy databases to production
         env:
