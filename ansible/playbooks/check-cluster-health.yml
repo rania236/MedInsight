@@ -1,0 +1,139 @@
+---
+# Playbook: Health check optimisé pour GitHub Actions
+# Exécute kubectl localement avec le kubeconfig configuré
+# Usage: ansible-playbook playbooks/check-cluster-health.yml
+
+- name: Check Kubernetes cluster health
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  
+  vars:
+    namespaces:
+      - medinsight-staging
+      - medinsight-prod
+    
+  tasks:
+    - name: Ensure reports directory exists
+      file:
+        path: "{{ playbook_dir }}/../reports"
+        state: directory
+        mode: '0755'
+
+    - name: Get cluster info
+      command: kubectl cluster-info
+      register: cluster_info
+      changed_when: false
+
+    - name: Display cluster info
+      debug:
+        msg: "{{ cluster_info.stdout_lines }}"
+
+    - name: Check cluster nodes status
+      command: kubectl get nodes -o wide
+      register: nodes_status
+      changed_when: false
+
+    - name: Display nodes status
+      debug:
+        msg: "{{ nodes_status.stdout_lines }}"
+
+    - name: Check all pods in medinsight namespaces
+      command: kubectl get pods -n {{ item }} -o wide
+      loop: "{{ namespaces }}"
+      register: pods_status
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Display pods status
+      debug:
+        msg: |
+          === {{ item.item }} ===
+          {{ item.stdout | default('Namespace not found or empty') }}
+      loop: "{{ pods_status.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Check for pods not in Running state
+      shell: |
+        kubectl get pods -A --no-headers | grep -v Running | grep -v Completed || echo "✅ All pods healthy"
+      register: unhealthy_pods
+      changed_when: false
+
+    - name: Display unhealthy pods
+      debug:
+        msg: "{{ unhealthy_pods.stdout_lines }}"
+
+    - name: Check PersistentVolumes
+      command: kubectl get pv
+      register: pv_status
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Display PV status
+      debug:
+        msg: "{{ pv_status.stdout_lines | default(['No PVs found']) }}"
+
+    - name: Check services in medinsight namespaces
+      shell: kubectl get svc -A | grep -E 'medinsight|NAMESPACE'
+      register: services_status
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Display services
+      debug:
+        msg: "{{ services_status.stdout_lines | default(['No services found']) }}"
+
+    - name: Check deployments status
+      command: kubectl get deployments -A -o wide
+      register: deployments_status
+      changed_when: false
+
+    - name: Display deployments
+      debug:
+        msg: "{{ deployments_status.stdout_lines }}"
+
+    - name: Get recent events (warnings/errors)
+      shell: |
+        kubectl get events -A --sort-by='.lastTimestamp' | grep -E 'Warning|Error' | tail -20 || echo "No warnings or errors"
+      register: events
+      changed_when: false
+
+    - name: Generate health report
+      copy:
+        dest: "{{ playbook_dir }}/../reports/cluster_health_report.txt"
+        content: |
+          ============================================
+          MedInsight Cluster Health Report
+          Generated: {{ lookup('pipe', 'date -Iseconds') }}
+          ============================================
+          
+          CLUSTER INFO:
+          {{ cluster_info.stdout }}
+          
+          NODES:
+          {{ nodes_status.stdout }}
+          
+          UNHEALTHY PODS:
+          {{ unhealthy_pods.stdout }}
+          
+          PERSISTENT VOLUMES:
+          {{ pv_status.stdout | default('None') }}
+          
+          SERVICES:
+          {{ services_status.stdout | default('None') }}
+          
+          DEPLOYMENTS:
+          {{ deployments_status.stdout }}
+          
+          RECENT EVENTS (Warnings/Errors):
+          {{ events.stdout }}
+          ============================================
+
+    - name: Health check summary
+      debug:
+        msg: |
+          ============================================
+          ✅ Health Check Complete!
+          📁 Full report saved to: reports/cluster_health_report.txt
+          ============================================

@@ -1,0 +1,66 @@
+---
+# Playbook: Backup des bases de données PostgreSQL
+# Usage: ansible-playbook playbooks/backup-databases.yml -e "env=staging"
+
+- name: Backup PostgreSQL databases
+  hosts: masters
+  become: yes
+  
+  vars:
+    env: staging
+    namespace: "medinsight-{{ env }}"
+    backup_dir: /var/backups/medinsight
+    timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
+    
+  tasks:
+    - name: Create backup directory
+      file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Get patient-db pod name
+      shell: |
+        kubectl get pods -n {{ namespace }} -l app=patient-db -o jsonpath='{.items[0].metadata.name}'
+      register: patient_db_pod
+
+    - name: Backup patient database
+      shell: |
+        kubectl exec -n {{ namespace }} {{ patient_db_pod.stdout }} -- \
+          pg_dump -U patient_user patient_db > {{ backup_dir }}/patient_db_{{ timestamp }}.sql
+      when: patient_db_pod.stdout != ""
+
+    - name: Get doctor-db pod name
+      shell: |
+        kubectl get pods -n {{ namespace }} -l app=doctor-db -o jsonpath='{.items[0].metadata.name}'
+      register: doctor_db_pod
+
+    - name: Backup doctor database
+      shell: |
+        kubectl exec -n {{ namespace }} {{ doctor_db_pod.stdout }} -- \
+          pg_dump -U medecin_user medecin_db > {{ backup_dir }}/medecin_db_{{ timestamp }}.sql
+      when: doctor_db_pod.stdout != ""
+
+    - name: Compress backups
+      archive:
+        path: 
+          - "{{ backup_dir }}/patient_db_{{ timestamp }}.sql"
+          - "{{ backup_dir }}/medecin_db_{{ timestamp }}.sql"
+        dest: "{{ backup_dir }}/medinsight_backup_{{ timestamp }}.tar.gz"
+        format: gz
+
+    - name: Clean up SQL files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ backup_dir }}/patient_db_{{ timestamp }}.sql"
+        - "{{ backup_dir }}/medecin_db_{{ timestamp }}.sql"
+
+    - name: Keep only last 7 backups
+      shell: |
+        ls -t {{ backup_dir }}/medinsight_backup_*.tar.gz | tail -n +8 | xargs -r rm
+
+    - name: Display backup info
+      debug:
+        msg: "✅ Backup created: {{ backup_dir }}/medinsight_backup_{{ timestamp }}.tar.gz"

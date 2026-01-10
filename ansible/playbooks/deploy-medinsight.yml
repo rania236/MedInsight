@@ -1,0 +1,246 @@
+---
+# Playbook: Déploiement de MedInsight sur Kubernetes
+# Usage: ansible-playbook playbooks/deploy-medinsight.yml -e "env=staging"
+
+- name: Deploy MedInsight to Kubernetes
+  hosts: masters
+  become: yes
+  
+  vars:
+    env: staging  # staging ou prod
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    
+    # Configuration par environnement
+    environments:
+      staging:
+        namespace: medinsight-staging
+        node_port_patient: 30080
+        node_port_doctor: 30081
+      prod:
+        namespace: medinsight-prod
+        node_port_patient: 30082
+        node_port_doctor: 30083
+    
+    # Variables dynamiques
+    namespace: "{{ environments[env].namespace }}"
+    node_port_patient: "{{ environments[env].node_port_patient }}"
+    node_port_doctor: "{{ environments[env].node_port_doctor }}"
+    
+    # Images (à surcharger via -e)
+    image_tag_patient: "ghcr.io/rania236/medinsight/patient-service:latest"
+    image_tag_doctor: "ghcr.io/rania236/medinsight/doctor-service:latest"
+    
+  tasks:
+    - name: Create namespace
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ namespace }}"
+
+    - name: Create GHCR pull secret
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: ghcr-secret
+            namespace: "{{ namespace }}"
+          type: kubernetes.io/dockerconfigjson
+          data:
+            .dockerconfigjson: "{{ ghcr_auth | b64encode }}"
+      when: ghcr_auth is defined
+
+    # --- Deploy Patient Database ---
+    - name: Deploy patient-db PersistentVolume
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: "patient-db-pv-{{ namespace }}"
+            labels:
+              app: patient-db
+              namespace: "{{ namespace }}"
+          spec:
+            capacity:
+              storage: 1Gi
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Retain
+            hostPath:
+              path: "/data/patient-db-{{ namespace }}"
+              type: DirectoryOrCreate
+
+    - name: Deploy patient-db PVC
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: patient-db-pvc
+            namespace: "{{ namespace }}"
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 1Gi
+            selector:
+              matchLabels:
+                app: patient-db
+                namespace: "{{ namespace }}"
+
+    - name: Deploy patient-db Deployment
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: patient-db
+            namespace: "{{ namespace }}"
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: patient-db
+            template:
+              metadata:
+                labels:
+                  app: patient-db
+              spec:
+                containers:
+                  - name: postgres
+                    image: postgres:15-alpine
+                    ports:
+                      - containerPort: 5432
+                    env:
+                      - name: POSTGRES_USER
+                        value: "patient_user"
+                      - name: POSTGRES_PASSWORD
+                        value: "patient_pass"
+                      - name: POSTGRES_DB
+                        value: "patient_db"
+                      - name: PGDATA
+                        value: /var/lib/postgresql/data/pgdata
+                    volumeMounts:
+                      - name: patient-db-storage
+                        mountPath: /var/lib/postgresql/data
+                volumes:
+                  - name: patient-db-storage
+                    persistentVolumeClaim:
+                      claimName: patient-db-pvc
+
+    - name: Deploy patient-db Service
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: patient-db
+            namespace: "{{ namespace }}"
+          spec:
+            selector:
+              app: patient-db
+            ports:
+              - port: 5432
+                targetPort: 5432
+            type: ClusterIP
+
+    - name: Wait for patient-db to be ready
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ kubeconfig_path }}"
+        kind: Deployment
+        name: patient-db
+        namespace: "{{ namespace }}"
+      register: patient_db_status
+      until: patient_db_status.resources[0].status.readyReplicas | default(0) >= 1
+      retries: 30
+      delay: 10
+
+    # --- Deploy Patient Service ---
+    - name: Deploy patient-service
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: patient-service
+            namespace: "{{ namespace }}"
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: patient-service
+            template:
+              metadata:
+                labels:
+                  app: patient-service
+              spec:
+                imagePullSecrets:
+                  - name: ghcr-secret
+                containers:
+                  - name: patient-service
+                    image: "{{ image_tag_patient }}"
+                    ports:
+                      - containerPort: 8081
+                    env:
+                      - name: SPRING_PROFILES_ACTIVE
+                        value: prod
+
+    - name: Deploy patient-service Service
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: patient-service
+            namespace: "{{ namespace }}"
+          spec:
+            selector:
+              app: patient-service
+            ports:
+              - port: 8081
+                targetPort: 8081
+                nodePort: "{{ node_port_patient }}"
+            type: NodePort
+
+    - name: Wait for patient-service to be ready
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ kubeconfig_path }}"
+        kind: Deployment
+        name: patient-service
+        namespace: "{{ namespace }}"
+      register: patient_service_status
+      until: patient_service_status.resources[0].status.readyReplicas | default(0) >= 1
+      retries: 30
+      delay: 10
+
+    # --- Similar for doctor-db and doctor-service ---
+    # (Ajoutez les mêmes blocs pour doctor-db et doctor-service)
+
+    - name: Display deployment summary
+      debug:
+        msg: |
+          ✅ MedInsight deployed to {{ env }}!
+          
+          Namespace: {{ namespace }}
+          Patient Service: http://{{ ansible_host }}:{{ node_port_patient }}
+          Doctor Service: http://{{ ansible_host }}:{{ node_port_doctor }}
