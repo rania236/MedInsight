@@ -122,4 +122,4 @@ resource "aws_security_group_rule" "worker_flannel" {
   security_group_id = var.worker_security_group_id
   description       = "Flannel VXLAN overlay network"
 }
-}
+
