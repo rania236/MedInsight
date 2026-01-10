@@ -395,6 +395,11 @@ jobs:
           NODE_PORT_PATIENT: ${{ env.NODE_PORT_STAGING_PATIENT }}
           NODE_PORT_DOCTOR: ${{ env.NODE_PORT_STAGING_DOCTOR }}
         run: |
+          echo "🧹 Clean old service deployments..."
+          kubectl delete deployment patient-service -n $NAMESPACE --ignore-not-found --timeout=60s || true
+          kubectl delete deployment doctor-service -n $NAMESPACE --ignore-not-found --timeout=60s || true
+          kubectl wait --for=delete pod -l app=patient-service -n $NAMESPACE --timeout=60s || true
+          kubectl wait --for=delete pod -l app=doctor-service -n $NAMESPACE --timeout=60s || true
           echo "🚀 Deploy patient-service"
           envsubst < k8s/patient-deployment.yaml | kubectl apply -n $NAMESPACE -f -
           envsubst < k8s/patient-service.yaml | kubectl apply -n $NAMESPACE -f -
@@ -539,6 +544,11 @@ jobs:
           NODE_PORT_PATIENT: ${{ env.NODE_PORT_PROD_PATIENT }}
           NODE_PORT_DOCTOR: ${{ env.NODE_PORT_PROD_DOCTOR }}
         run: |
+          echo "🧹 Clean old service deployments..."
+          kubectl delete deployment patient-service -n $NAMESPACE --ignore-not-found --timeout=60s || true
+          kubectl delete deployment doctor-service -n $NAMESPACE --ignore-not-found --timeout=60s || true
+          kubectl wait --for=delete pod -l app=patient-service -n $NAMESPACE --timeout=60s || true
+          kubectl wait --for=delete pod -l app=doctor-service -n $NAMESPACE --timeout=60s || true
           echo "🚀 Deploy patient-service to production"
           envsubst < k8s/patient-deployment.yaml | kubectl apply -n $NAMESPACE -f -
           envsubst < k8s/patient-service.yaml | kubectl apply -n $NAMESPACE -f -
