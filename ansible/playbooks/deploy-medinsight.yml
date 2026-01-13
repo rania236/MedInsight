@@ -376,7 +376,7 @@
                   - name: doctor-service
                     image: "{{ image_tag_doctor }}"
                     ports:
-                      - containerPort: 8050
+                      - containerPort: 8082
                     env:
                       - name: SPRING_PROFILES_ACTIVE
                         value: prod
@@ -396,7 +396,7 @@
               app: doctor-service
             ports:
               - port: 8082
-                targetPort: 8050
+                targetPort: 8082
                 nodePort: 30081
             type: NodePort
 
