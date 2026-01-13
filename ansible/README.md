@@ -26,7 +26,7 @@ cd ansible
 ansible-galaxy install -r requirements.yml
 
 # 3. Configurer votre clé SSH
-chmod 400 ~/.ssh/medinsight-key.pem
+chmod 400 ~/.ssh/labuser.pem
 ```
 
 ## 📋 Playbooks disponibles

@@ -1,0 +1,57 @@
+============================================
+MedInsight Cluster Health Report
+Generated: 2026-01-13T15:33:46+01:00
+============================================
+
+CLUSTER INFO:
+Kubernetes control plane is running at https://174.129.231.212:6443
+CoreDNS is running at https://174.129.231.212:6443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
+
+To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
+
+NODES:
+NAME               STATUS   ROLES           AGE   VERSION   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION    CONTAINER-RUNTIME
+ip-172-31-18-40    Ready    <none>          36d   v1.33.6   172.31.18.40    <none>        Ubuntu 24.04.3 LTS   6.14.0-1015-aws   containerd://2.2.0
+ip-172-31-29-183   Ready    control-plane   36d   v1.33.6   172.31.29.183   <none>        Ubuntu 24.04.3 LTS   6.14.0-1015-aws   containerd://2.2.0
+
+UNHEALTHY PODS:
+✅ All pods healthy
+
+PERSISTENT VOLUMES:
+NAME                               CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                               STORAGECLASS   VOLUMEATTRIBUTESCLASS   REASON   AGE
+doctor-db-pv-medinsight-prod       1Gi        RWO            Retain           Bound    medinsight-prod/doctor-db-pvc                      <unset>                          2d23h
+doctor-db-pv-medinsight-staging    1Gi        RWO            Retain           Bound    medinsight-staging/doctor-db-pvc                   <unset>                          2d23h
+patient-db-pv-medinsight-prod      1Gi        RWO            Retain           Bound    medinsight-prod/patient-db-pvc                     <unset>                          2d23h
+patient-db-pv-medinsight-staging   1Gi        RWO            Retain           Bound    medinsight-staging/patient-db-pvc                  <unset>                          2d23h
+postgres-pv                        5Gi        RWO            Retain           Bound    keycloak/postgres-pvc               local-path     <unset>                          27d
+
+SERVICES:
+NAMESPACE            NAME              TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                  AGE
+medinsight-prod      doctor-db         ClusterIP   10.101.127.28    <none>        5432/TCP                 3d1h
+medinsight-prod      doctor-service    NodePort    10.102.247.63    <none>        8082:30083/TCP           3d2h
+medinsight-prod      patient-db        ClusterIP   10.108.134.229   <none>        5432/TCP                 3d1h
+medinsight-prod      patient-service   NodePort    10.97.227.143    <none>        8050:30082/TCP           3d2h
+medinsight-staging   doctor-db         ClusterIP   10.99.242.231    <none>        5432/TCP                 3d2h
+medinsight-staging   doctor-service    NodePort    10.105.193.170   <none>        8082:30081/TCP           3d3h
+medinsight-staging   patient-db        ClusterIP   10.98.195.49     <none>        5432/TCP                 3d2h
+medinsight-staging   patient-service   NodePort    10.111.102.69    <none>        8050:30080/TCP           3d3h
+
+DEPLOYMENTS:
+NAMESPACE            NAME                     READY   UP-TO-DATE   AVAILABLE   AGE     CONTAINERS               IMAGES                                                                                                            SELECTOR
+keycloak             keycloak                 1/1     1            1           26d     keycloak                 quay.io/keycloak/keycloak:24.0.3                                                                                  app=keycloak
+keycloak             postgres                 1/1     1            1           27d     postgres                 postgres:16-alpine                                                                                                app=postgres
+kube-system          cilium-operator          1/1     1            1           36d     cilium-operator          quay.io/cilium/operator-generic:v1.18.3@sha256:b5a0138e1a38e4437c5215257ff4e35373619501f4877dbaf92c89ecfad81797   io.cilium/app=operator,name=cilium-operator
+kube-system          coredns                  2/2     2            2           36d     coredns                  registry.k8s.io/coredns/coredns:v1.12.0                                                                           k8s-app=kube-dns
+local-path-storage   local-path-provisioner   1/1     1            1           27d     local-path-provisioner   rancher/local-path-provisioner:v0.0.32                                                                            app=local-path-provisioner
+medinsight-prod      doctor-db                1/1     1            1           2d23h   postgres                 postgres:15-alpine                                                                                                app=doctor-db
+medinsight-prod      doctor-service           1/1     1            1           2d23h   doctor-service           ghcr.io/rania236/doctor-service:353d7acee8bbdf5fad2699d88857ba5981050000                                          app=doctor-service
+medinsight-prod      patient-db               1/1     1            1           2d23h   postgres                 postgres:15-alpine                                                                                                app=patient-db
+medinsight-prod      patient-service          1/1     1            1           2d23h   patient-service          ghcr.io/rania236/patient-service:353d7acee8bbdf5fad2699d88857ba5981050000                                         app=patient-service
+medinsight-staging   doctor-db                1/1     1            1           2d23h   postgres                 postgres:15-alpine                                                                                                app=doctor-db
+medinsight-staging   doctor-service           1/1     1            1           2d23h   doctor-service           ghcr.io/rania236/doctor-service:353d7acee8bbdf5fad2699d88857ba5981050000                                          app=doctor-service
+medinsight-staging   patient-db               1/1     1            1           2d23h   postgres                 postgres:15-alpine                                                                                                app=patient-db
+medinsight-staging   patient-service          1/1     1            1           2d23h   patient-service          ghcr.io/rania236/patient-service:353d7acee8bbdf5fad2699d88857ba5981050000                                         app=patient-service
+
+RECENT EVENTS (Warnings/Errors):
+
+============================================
