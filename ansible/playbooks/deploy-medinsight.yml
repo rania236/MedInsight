@@ -4,7 +4,7 @@
 
 - name: Deploy MedInsight to Kubernetes
   hosts: masters
-  become: yes
+  become: true
   
   vars:
     env: staging  # staging ou prod
@@ -23,8 +23,8 @@
     
     # Variables dynamiques
     namespace: "{{ environments[env].namespace }}"
-    node_port_patient: "{{ environments[env].node_port_patient }}"
-    node_port_doctor: "{{ environments[env].node_port_doctor }}"
+    node_port_patient: "{{ environments[env].node_port_patient | int }}"
+    node_port_doctor: "{{ environments[env].node_port_doctor | int }}"
     
     # Images (à surcharger via -e)
     image_tag_patient: "ghcr.io/rania236/medinsight/patient-service:latest"
@@ -52,8 +52,8 @@
             name: ghcr-secret
             namespace: "{{ namespace }}"
           type: kubernetes.io/dockerconfigjson
-          data:
-            .dockerconfigjson: "{{ ghcr_auth | b64encode }}"
+          stringData:
+            .dockerconfigjson: "{{ ghcr_auth }}"
       when: ghcr_auth is defined
 
     # --- Deploy Patient Database ---
