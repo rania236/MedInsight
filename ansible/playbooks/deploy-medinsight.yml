@@ -397,7 +397,7 @@
             ports:
               - port: 8082
                 targetPort: 8082
-                nodePort: "{{ node_port_doctor }}"
+                nodePort: 30081
             type: NodePort
 
     - name: Wait for doctor-service to be ready
