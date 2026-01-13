@@ -26,7 +26,7 @@
     node_port_patient: "{{ environments[env].node_port_patient | int }}"
     node_port_doctor: "{{ environments[env].node_port_doctor | int }}"
     
-    # Images (Corrigées avec les chemins et tags réels)
+    # Images (Fixied with exact paths and tags for clarity)
     image_tag_patient: "ghcr.io/rania236/patient-service:0c7ee329761a100d7c7176bb753ae75bb8161e38"
     image_tag_doctor: "ghcr.io/rania236/doctor-service:0c7ee329761a100d7c7176bb753ae75bb8161e38"
     
@@ -198,7 +198,7 @@
                   - name: patient-service
                     image: "{{ image_tag_patient }}"
                     ports:
-                      - containerPort: 8081
+                      - containerPort: 8050
                     env:
                       - name: SPRING_PROFILES_ACTIVE
                         value: prod
@@ -218,7 +218,7 @@
               app: patient-service
             ports:
               - port: 8081
-                targetPort: 8081
+                targetPort: 8050
                 nodePort: 30080
             type: NodePort
 
@@ -376,7 +376,7 @@
                   - name: doctor-service
                     image: "{{ image_tag_doctor }}"
                     ports:
-                      - containerPort: 8082
+                      - containerPort: 8050
                     env:
                       - name: SPRING_PROFILES_ACTIVE
                         value: prod
@@ -396,7 +396,7 @@
               app: doctor-service
             ports:
               - port: 8082
-                targetPort: 8082
+                targetPort: 8050
                 nodePort: 30081
             type: NodePort
 
