@@ -27,8 +27,8 @@
     node_port_doctor: "{{ environments[env].node_port_doctor | int }}"
     
     # Images (à surcharger via -e)
-    image_tag_patient: "ghcr.io/rania236/medinsight/patient-service:latest"
-    image_tag_doctor: "ghcr.io/rania236/medinsight/doctor-service:latest"
+    image_tag_patient: "ghcr.io/rania236/patient-service:latest"
+    image_tag_doctor: "ghcr.io/rania236/doctor-service:latest"
     
   tasks:
     - name: Create namespace
