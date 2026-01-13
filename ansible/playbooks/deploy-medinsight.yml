@@ -233,8 +233,184 @@
       retries: 30
       delay: 10
 
-    # --- Similar for doctor-db and doctor-service ---
-    # (Ajoutez les mêmes blocs pour doctor-db et doctor-service)
+
+    # --- Deploy Doctor Database ---
+    - name: Deploy doctor-db PersistentVolume
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: "doctor-db-pv-{{ namespace }}"
+            labels:
+              app: doctor-db
+              namespace: "{{ namespace }}"
+          spec:
+            capacity:
+              storage: 1Gi
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Retain
+            hostPath:
+              path: "/data/doctor-db-{{ namespace }}"
+              type: DirectoryOrCreate
+
+    - name: Deploy doctor-db PVC
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: doctor-db-pvc
+            namespace: "{{ namespace }}"
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 1Gi
+            selector:
+              matchLabels:
+                app: doctor-db
+                namespace: "{{ namespace }}"
+
+    - name: Deploy doctor-db Deployment
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: doctor-db
+            namespace: "{{ namespace }}"
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: doctor-db
+            template:
+              metadata:
+                labels:
+                  app: doctor-db
+              spec:
+                containers:
+                  - name: postgres
+                    image: postgres:15-alpine
+                    ports:
+                      - containerPort: 5432
+                    env:
+                      - name: POSTGRES_USER
+                        value: "doctor_user"
+                      - name: POSTGRES_PASSWORD
+                        value: "doctor_pass"
+                      - name: POSTGRES_DB
+                        value: "doctor_db"
+                      - name: PGDATA
+                        value: /var/lib/postgresql/data/pgdata
+                    volumeMounts:
+                      - name: doctor-db-storage
+                        mountPath: /var/lib/postgresql/data
+                volumes:
+                  - name: doctor-db-storage
+                    persistentVolumeClaim:
+                      claimName: doctor-db-pvc
+
+    - name: Deploy doctor-db Service
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: doctor-db
+            namespace: "{{ namespace }}"
+          spec:
+            selector:
+              app: doctor-db
+            ports:
+              - port: 5432
+                targetPort: 5432
+            type: ClusterIP
+
+    - name: Wait for doctor-db to be ready
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ kubeconfig_path }}"
+        kind: Deployment
+        name: doctor-db
+        namespace: "{{ namespace }}"
+      register: doctor_db_status
+      until: doctor_db_status.resources[0].status.readyReplicas | default(0) >= 1
+      retries: 30
+      delay: 10
+
+    # --- Deploy Doctor Service ---
+    - name: Deploy doctor-service
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: doctor-service
+            namespace: "{{ namespace }}"
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: doctor-service
+            template:
+              metadata:
+                labels:
+                  app: doctor-service
+              spec:
+                imagePullSecrets:
+                  - name: ghcr-secret
+                containers:
+                  - name: doctor-service
+                    image: "{{ image_tag_doctor }}"
+                    ports:
+                      - containerPort: 8082
+                    env:
+                      - name: SPRING_PROFILES_ACTIVE
+                        value: prod
+
+    - name: Deploy doctor-service Service
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: doctor-service
+            namespace: "{{ namespace }}"
+          spec:
+            selector:
+              app: doctor-service
+            ports:
+              - port: 8082
+                targetPort: 8082
+                nodePort: "{{ node_port_doctor }}"
+            type: NodePort
+
+    - name: Wait for doctor-service to be ready
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ kubeconfig_path }}"
+        kind: Deployment
+        name: doctor-service
+        namespace: "{{ namespace }}"
+      register: doctor_service_status
+      until: doctor_service_status.resources[0].status.readyReplicas | default(0) >= 1
+      retries: 30
+      delay: 10
+
 
     - name: Display deployment summary
       debug:
