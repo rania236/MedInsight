@@ -422,7 +422,11 @@ jobs:
         run: |
           mkdir -p ~/.kube
           echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
-
+      - name: Debug kubeconfig
+        run: |
+          ls -lh ~/.kube/config
+          cat ~/.kube/config
+          head ~/.kube/config
       - name: Run Ansible Health Check
         working-directory: ansible
         run: |
