@@ -1,6 +1,6 @@
 ============================================
 MedInsight Cluster Health Report
-Generated: 2026-01-13T15:33:46+01:00
+Generated: 2026-01-14T19:16:21+01:00
 ============================================
 
 CLUSTER INFO:
@@ -11,47 +11,64 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 
 NODES:
 NAME               STATUS   ROLES           AGE   VERSION   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION    CONTAINER-RUNTIME
-ip-172-31-18-40    Ready    <none>          36d   v1.33.6   172.31.18.40    <none>        Ubuntu 24.04.3 LTS   6.14.0-1015-aws   containerd://2.2.0
-ip-172-31-29-183   Ready    control-plane   36d   v1.33.6   172.31.29.183   <none>        Ubuntu 24.04.3 LTS   6.14.0-1015-aws   containerd://2.2.0
+ip-172-31-18-40    Ready    <none>          37d   v1.33.6   172.31.18.40    <none>        Ubuntu 24.04.3 LTS   6.14.0-1015-aws   containerd://2.2.0
+ip-172-31-29-183   Ready    control-plane   37d   v1.33.6   172.31.29.183   <none>        Ubuntu 24.04.3 LTS   6.14.0-1015-aws   containerd://2.2.0
 
 UNHEALTHY PODS:
 ✅ All pods healthy
 
 PERSISTENT VOLUMES:
 NAME                               CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                               STORAGECLASS   VOLUMEATTRIBUTESCLASS   REASON   AGE
-doctor-db-pv-medinsight-prod       1Gi        RWO            Retain           Bound    medinsight-prod/doctor-db-pvc                      <unset>                          2d23h
-doctor-db-pv-medinsight-staging    1Gi        RWO            Retain           Bound    medinsight-staging/doctor-db-pvc                   <unset>                          2d23h
-patient-db-pv-medinsight-prod      1Gi        RWO            Retain           Bound    medinsight-prod/patient-db-pvc                     <unset>                          2d23h
-patient-db-pv-medinsight-staging   1Gi        RWO            Retain           Bound    medinsight-staging/patient-db-pvc                  <unset>                          2d23h
-postgres-pv                        5Gi        RWO            Retain           Bound    keycloak/postgres-pvc               local-path     <unset>                          27d
+doctor-db-pv-medinsight-prod       1Gi        RWO            Retain           Bound    medinsight-prod/doctor-db-pvc                      <unset>                          26h
+doctor-db-pv-medinsight-staging    1Gi        RWO            Retain           Bound    medinsight-staging/doctor-db-pvc                   <unset>                          13m
+patient-db-pv-medinsight-prod      1Gi        RWO            Retain           Bound    medinsight-prod/patient-db-pvc                     <unset>                          26h
+patient-db-pv-medinsight-staging   1Gi        RWO            Retain           Bound    medinsight-staging/patient-db-pvc                  <unset>                          13m
+postgres-pv                        5Gi        RWO            Retain           Bound    keycloak/postgres-pvc               local-path     <unset>                          28d
 
 SERVICES:
 NAMESPACE            NAME              TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                  AGE
-medinsight-prod      doctor-db         ClusterIP   10.101.127.28    <none>        5432/TCP                 3d1h
-medinsight-prod      doctor-service    NodePort    10.102.247.63    <none>        8082:30083/TCP           3d2h
-medinsight-prod      patient-db        ClusterIP   10.108.134.229   <none>        5432/TCP                 3d1h
-medinsight-prod      patient-service   NodePort    10.97.227.143    <none>        8050:30082/TCP           3d2h
-medinsight-staging   doctor-db         ClusterIP   10.99.242.231    <none>        5432/TCP                 3d2h
-medinsight-staging   doctor-service    NodePort    10.105.193.170   <none>        8082:30081/TCP           3d3h
-medinsight-staging   patient-db        ClusterIP   10.98.195.49     <none>        5432/TCP                 3d2h
-medinsight-staging   patient-service   NodePort    10.111.102.69    <none>        8050:30080/TCP           3d3h
+medinsight-prod      doctor-db         ClusterIP   10.101.127.28    <none>        5432/TCP                 4d4h
+medinsight-prod      doctor-service    NodePort    10.102.247.63    <none>        8082:30083/TCP           4d6h
+medinsight-prod      patient-db        ClusterIP   10.108.134.229   <none>        5432/TCP                 4d4h
+medinsight-prod      patient-service   NodePort    10.96.139.36     <none>        8081:30082/TCP           5m40s
+medinsight-staging   doctor-db         ClusterIP   10.99.242.231    <none>        5432/TCP                 4d6h
+medinsight-staging   doctor-service    NodePort    10.98.232.133    <none>        8082:30081/TCP           25h
+medinsight-staging   patient-db        ClusterIP   10.98.195.49     <none>        5432/TCP                 4d6h
+medinsight-staging   patient-service   NodePort    10.111.207.153   <none>        8081:30080/TCP           19m
 
 DEPLOYMENTS:
-NAMESPACE            NAME                     READY   UP-TO-DATE   AVAILABLE   AGE     CONTAINERS               IMAGES                                                                                                            SELECTOR
-keycloak             keycloak                 1/1     1            1           26d     keycloak                 quay.io/keycloak/keycloak:24.0.3                                                                                  app=keycloak
-keycloak             postgres                 1/1     1            1           27d     postgres                 postgres:16-alpine                                                                                                app=postgres
-kube-system          cilium-operator          1/1     1            1           36d     cilium-operator          quay.io/cilium/operator-generic:v1.18.3@sha256:b5a0138e1a38e4437c5215257ff4e35373619501f4877dbaf92c89ecfad81797   io.cilium/app=operator,name=cilium-operator
-kube-system          coredns                  2/2     2            2           36d     coredns                  registry.k8s.io/coredns/coredns:v1.12.0                                                                           k8s-app=kube-dns
-local-path-storage   local-path-provisioner   1/1     1            1           27d     local-path-provisioner   rancher/local-path-provisioner:v0.0.32                                                                            app=local-path-provisioner
-medinsight-prod      doctor-db                1/1     1            1           2d23h   postgres                 postgres:15-alpine                                                                                                app=doctor-db
-medinsight-prod      doctor-service           1/1     1            1           2d23h   doctor-service           ghcr.io/rania236/doctor-service:353d7acee8bbdf5fad2699d88857ba5981050000                                          app=doctor-service
-medinsight-prod      patient-db               1/1     1            1           2d23h   postgres                 postgres:15-alpine                                                                                                app=patient-db
-medinsight-prod      patient-service          1/1     1            1           2d23h   patient-service          ghcr.io/rania236/patient-service:353d7acee8bbdf5fad2699d88857ba5981050000                                         app=patient-service
-medinsight-staging   doctor-db                1/1     1            1           2d23h   postgres                 postgres:15-alpine                                                                                                app=doctor-db
-medinsight-staging   doctor-service           1/1     1            1           2d23h   doctor-service           ghcr.io/rania236/doctor-service:353d7acee8bbdf5fad2699d88857ba5981050000                                          app=doctor-service
-medinsight-staging   patient-db               1/1     1            1           2d23h   postgres                 postgres:15-alpine                                                                                                app=patient-db
-medinsight-staging   patient-service          1/1     1            1           2d23h   patient-service          ghcr.io/rania236/patient-service:353d7acee8bbdf5fad2699d88857ba5981050000                                         app=patient-service
+NAMESPACE            NAME                     READY   UP-TO-DATE   AVAILABLE   AGE   CONTAINERS               IMAGES                                                                                                            SELECTOR
+keycloak             keycloak                 1/1     1            1           28d   keycloak                 quay.io/keycloak/keycloak:24.0.3                                                                                  app=keycloak
+keycloak             postgres                 1/1     1            1           28d   postgres                 postgres:16-alpine                                                                                                app=postgres
+kube-system          cilium-operator          1/1     1            1           37d   cilium-operator          quay.io/cilium/operator-generic:v1.18.3@sha256:b5a0138e1a38e4437c5215257ff4e35373619501f4877dbaf92c89ecfad81797   io.cilium/app=operator,name=cilium-operator
+kube-system          coredns                  2/2     2            2           37d   coredns                  registry.k8s.io/coredns/coredns:v1.12.0                                                                           k8s-app=kube-dns
+local-path-storage   local-path-provisioner   1/1     1            1           28d   local-path-provisioner   rancher/local-path-provisioner:v0.0.32                                                                            app=local-path-provisioner
+medinsight-prod      doctor-db                1/1     1            1           26h   postgres                 postgres:15-alpine                                                                                                app=doctor-db
+medinsight-prod      doctor-service           1/1     1            1           26h   doctor-service           ghcr.io/rania236/doctor-service:0c7ee329761a100d7c7176bb753ae75bb8161e38                                          app=doctor-service
+medinsight-prod      patient-db               1/1     1            1           26h   postgres                 postgres:15-alpine                                                                                                app=patient-db
+medinsight-prod      patient-service          1/1     1            1           26h   patient-service          ghcr.io/rania236/patient-service:0c7ee329761a100d7c7176bb753ae75bb8161e38                                         app=patient-service
+medinsight-staging   doctor-db                1/1     1            1           13m   postgres                 postgres:15-alpine                                                                                                app=doctor-db
+medinsight-staging   patient-db               1/1     1            1           13m   postgres                 postgres:15-alpine                                                                                                app=patient-db
+medinsight-staging   patient-service          1/1     1            1           13m   patient-service          ghcr.io/rania236/patient-service:67c37d52241e40f690f32b4c80abb899f74cdcba                                         app=patient-service
 
 RECENT EVENTS (Warnings/Errors):
-
+medinsight-staging   25h         Warning   Failed                    pod/patient-service-5c87b5cc96-b8d8t           Failed to pull image "ghcr.io/rania236/patient-service:latest": failed to pull and unpack image "ghcr.io/rania236/patient-service:latest": failed to resolve image: failed to authorize: failed to fetch oauth token: unexpected status from GET request to https://ghcr.io/token?scope=repository%3Arania236%2Fpatient-service%3Apull&service=ghcr.io: 403 Forbidden
+medinsight-staging   25h         Warning   Failed                    pod/patient-service-5c87b5cc96-b8d8t           Error: ErrImagePull
+medinsight-staging   25h         Warning   Failed                    pod/patient-service-5c87b5cc96-b8d8t           Error: ImagePullBackOff
+default              8h          Warning   InvalidDiskCapacity       node/ip-172-31-18-40                           invalid capacity 0 on image filesystem
+default              8h          Warning   Rebooted                  node/ip-172-31-29-183                          Node ip-172-31-29-183 has been rebooted, boot id: 734c6e49-5dd6-4a0d-8efe-8aa5c119695a
+default              8h          Warning   Rebooted                  node/ip-172-31-18-40                           Node ip-172-31-18-40 has been rebooted, boot id: f408ef81-38c1-47e5-9677-1fc5e7fdc0f3
+kube-system          8h          Warning   Unhealthy                 pod/cilium-operator-7cd4b9c46b-l477h           Readiness probe failed: Get "http://127.0.0.1:9234/healthz": dial tcp 127.0.0.1:9234: connect: connection refused
+kube-system          8h          Warning   Unhealthy                 pod/coredns-674b8bbfcf-bwbt5                   Readiness probe failed: Get "http://10.0.1.244:8181/ready": dial tcp 10.0.1.244:8181: connect: connection refused
+kube-system          8h          Warning   Unhealthy                 pod/coredns-674b8bbfcf-hqw8q                   Readiness probe failed: Get "http://10.0.1.150:8181/ready": dial tcp 10.0.1.150:8181: connect: connection refused
+kube-system          8h          Warning   Unhealthy                 pod/cilium-envoy-jvfv7                         Startup probe failed: Get "http://127.0.0.1:9878/healthz": dial tcp 127.0.0.1:9878: connect: connection refused
+kube-system          8h          Warning   Unhealthy                 pod/cilium-envoy-lfxtp                         Startup probe failed: Get "http://127.0.0.1:9878/healthz": dial tcp 127.0.0.1:9878: connect: connection refused
+default              60m         Warning   InvalidDiskCapacity       node/ip-172-31-29-183                          invalid capacity 0 on image filesystem
+default              59m         Warning   Rebooted                  node/ip-172-31-29-183                          Node ip-172-31-29-183 has been rebooted, boot id: 2460ebdf-0ae0-45c3-aded-e37b229a4655
+default              59m         Warning   Rebooted                  node/ip-172-31-18-40                           Node ip-172-31-18-40 has been rebooted, boot id: 8e052b5b-23b5-4755-946a-49bdecc8b6a1
+kube-system          59m         Warning   Unhealthy                 pod/cilium-operator-7cd4b9c46b-l477h           Readiness probe failed: Get "http://127.0.0.1:9234/healthz": dial tcp 127.0.0.1:9234: connect: connection refused
+kube-system          59m         Warning   Unhealthy                 pod/cilium-envoy-lfxtp                         Startup probe failed: Get "http://127.0.0.1:9878/healthz": dial tcp 127.0.0.1:9878: connect: connection refused
+kube-system          59m         Warning   Unhealthy                 pod/cilium-envoy-jvfv7                         Startup probe failed: Get "http://127.0.0.1:9878/healthz": dial tcp 127.0.0.1:9878: connect: connection refused
+kube-system          59m         Warning   Unhealthy                 pod/coredns-674b8bbfcf-hqw8q                   Readiness probe failed: Get "http://10.0.1.176:8181/ready": dial tcp 10.0.1.176:8181: connect: connection refused
+kube-system          59m         Warning   Unhealthy                 pod/coredns-674b8bbfcf-bwbt5                   Readiness probe failed: Get "http://10.0.1.199:8181/ready": dial tcp 10.0.1.199:8181: connect: connection refused
 ============================================
