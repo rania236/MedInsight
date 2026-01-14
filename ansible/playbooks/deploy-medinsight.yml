@@ -1,4 +1,3 @@
----
 # Playbook: Déploiement de MedInsight sur Kubernetes
 # Usage: ansible-playbook playbooks/deploy-medinsight.yml -e "env=staging"
 
@@ -7,10 +6,9 @@
   become: true
   
   vars:
-    env: staging  # staging ou prod
+    env: staging  # staging ou prod -- à surcharger en CLI
     kubeconfig_path: /etc/kubernetes/admin.conf
     
-    # Configuration par environnement
     environments:
       staging:
         namespace: medinsight-staging
@@ -20,16 +18,13 @@
         namespace: medinsight-prod
         node_port_patient: 30082
         node_port_doctor: 30083
-    
-    # Variables dynamiques
+
     namespace: "{{ environments[env].namespace }}"
     node_port_patient: "{{ environments[env].node_port_patient | int }}"
     node_port_doctor: "{{ environments[env].node_port_doctor | int }}"
-    
-    # Images (Fixied with exact paths and tags for clarity)
     image_tag_patient: "ghcr.io/rania236/patient-service:0c7ee329761a100d7c7176bb753ae75bb8161e38"
     image_tag_doctor: "ghcr.io/rania236/doctor-service:0c7ee329761a100d7c7176bb753ae75bb8161e38"
-    
+  
   tasks:
     - name: Create namespace
       kubernetes.core.k8s:
@@ -56,7 +51,7 @@
             .dockerconfigjson: "{{ ghcr_auth }}"
       when: ghcr_auth is defined
 
-    # --- Deploy Patient Database ---
+    # ---- Déploiement database patient ----
     - name: Deploy patient-db PersistentVolume
       kubernetes.core.k8s:
         kubeconfig: "{{ kubeconfig_path }}"
@@ -171,7 +166,7 @@
       retries: 30
       delay: 10
 
-    # --- Deploy Patient Service ---
+    # ---- Déploiement patient-service ----
     - name: Deploy patient-service
       kubernetes.core.k8s:
         kubeconfig: "{{ kubeconfig_path }}"
@@ -203,24 +198,47 @@
                       - name: SPRING_PROFILES_ACTIVE
                         value: prod
 
-    - name: Deploy patient-service Service
+    # --- Suppression et déploiement du Service patient-service (corrigé !) ---
+    - name: Delete old patient-service Service
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: absent
+        api_version: v1
+        kind: Service
+        name: patient-service
+        namespace: "{{ namespace }}"
+      ignore_errors: true
+    - name: Debug node_port_patient type
+      debug:
+        msg: "node_port_patient='{{ node_port_patient }}', type={{ node_port_patient | type_debug }}"
+   # - name: Deploy patient-service Service
+    #  kubernetes.core.k8s:
+     #   kubeconfig: "{{ kubeconfig_path }}"
+      #  state: present
+       # definition:
+        #  apiVersion: v1
+        #  kind: Service
+        #  metadata:
+        #    name: patient-service
+         #   namespace: "{{ namespace }}"
+         # spec:
+          #  selector:
+          #    app: patient-service
+          #  ports:
+          #    - port: 8081
+          #      targetPort: 8050
+         #       nodePort: "{{ node_port_patient | int }}"
+         #  type: NodePort
+    - name: Render patient-service Service YAML from Jinja template
+      template:
+        src: templates/patient-service.yaml.j2
+        dest: /tmp/patient-service.yaml
+
+    - name: Deploy patient-service Service (from template)
       kubernetes.core.k8s:
         kubeconfig: "{{ kubeconfig_path }}"
         state: present
-        definition:
-          apiVersion: v1
-          kind: Service
-          metadata:
-            name: patient-service
-            namespace: "{{ namespace }}"
-          spec:
-            selector:
-              app: patient-service
-            ports:
-              - port: 8081
-                targetPort: 8050
-                nodePort: "{{ node_port_patient }}"
-            type: NodePort
+        src: /tmp/patient-service.yaml
 
     - name: Wait for patient-service to be ready
       kubernetes.core.k8s_info:

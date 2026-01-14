@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: patient-service
+  namespace: {{ namespace }}
+spec:
+  selector:
+    app: patient-service
+  ports:
+    - port: 8081
+      targetPort: 8050
+      nodePort: {{ node_port_patient | int }}
+  type: NodePort
