@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: doctor-service
+  namespace: {{ namespace }}
+spec:
+  selector:
+    app: doctor-service
+  ports:
+    - port: 8082
+      targetPort: 8082
+      nodePort: {{ node_port_doctor | int }}
+  type: NodePort

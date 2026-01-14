@@ -231,7 +231,7 @@
          #  type: NodePort
     - name: Render patient-service Service YAML from Jinja template
       template:
-        src: templates/patient-service.yaml.j2
+        src: ../templates/patient-service.yaml.j2
         dest: /tmp/patient-service.yaml
 
     - name: Deploy patient-service Service (from template)
@@ -399,25 +399,33 @@
                       - name: SPRING_PROFILES_ACTIVE
                         value: prod
 
-    - name: Deploy doctor-service Service
+    #- name: Deploy doctor-service Service
+    #  kubernetes.core.k8s:
+    #    kubeconfig: "{{ kubeconfig_path }}"
+    #    state: present
+    #    definition:
+    #      apiVersion: v1
+    #      kind: Service
+    #      metadata:
+    #        name: doctor-service
+    #        namespace: "{{ namespace }}"
+    #      spec:
+    #        selector:
+    #          app: doctor-service
+    #        ports:
+    #          - port: 8082
+    #            targetPort: 8082
+    #            nodePort: "{{ node_port_doctor }}"
+    #        type: NodePort
+    - name: Render doctor-service Service YAML from Jinja template
+      template:
+        src: ../templates/doctor-service.yaml.j2
+        dest: /tmp/doctor-service.yaml
+    - name: Deploy doctor-service Service (from template)
       kubernetes.core.k8s:
         kubeconfig: "{{ kubeconfig_path }}"
         state: present
-        definition:
-          apiVersion: v1
-          kind: Service
-          metadata:
-            name: doctor-service
-            namespace: "{{ namespace }}"
-          spec:
-            selector:
-              app: doctor-service
-            ports:
-              - port: 8082
-                targetPort: 8082
-                nodePort: "{{ node_port_doctor }}"
-            type: NodePort
-
+        src: /tmp/doctor-service.yaml
     - name: Wait for doctor-service to be ready
       kubernetes.core.k8s_info:
         kubeconfig: "{{ kubeconfig_path }}"
