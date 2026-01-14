@@ -495,15 +495,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: security-scan
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-    environment: production  # GitHub environment with manual approval required
+    environment: production
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: v1.29.0
 
       - name: Configure kubeconfig
         env:
@@ -527,76 +522,33 @@ jobs:
             --docker-username=${{ github.actor }} \
             --docker-password=$GHCR_PAT
 
-      - name: Clean old database resources in production
-        env:
-          NAMESPACE: ${{ env.PROD_NAMESPACE }}
-        run: |
-          echo "🧹 Cleaning old database resources..."
-          # Delete deployments first (stops pods using PVCs)
-          kubectl delete deployment patient-db -n $NAMESPACE --ignore-not-found --timeout=60s || true
-          kubectl delete deployment doctor-db -n $NAMESPACE --ignore-not-found --timeout=60s || true
-          # Wait for pods to terminate
-          kubectl wait --for=delete pod -l app=patient-db -n $NAMESPACE --timeout=60s || true
-          kubectl wait --for=delete pod -l app=doctor-db -n $NAMESPACE --timeout=60s || true
-          # Now delete PVCs (no longer in use)
-          kubectl delete pvc patient-db-pvc -n $NAMESPACE --ignore-not-found --timeout=30s || true
-          kubectl delete pvc doctor-db-pvc -n $NAMESPACE --ignore-not-found --timeout=30s || true
-          # Finally delete PVs
-          kubectl delete pv patient-db-pv-$NAMESPACE --ignore-not-found --timeout=30s || true
-          kubectl delete pv doctor-db-pv-$NAMESPACE --ignore-not-found --timeout=30s || true
-          echo "✅ Cleanup complete"
+      ### Drop all kubectl database & app deploy steps, ADD this:
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-      - name: Deploy databases to production
-        env:
-          NAMESPACE: ${{ env.PROD_NAMESPACE }}
+      - name: Setup SSH key for Ansible
         run: |
-          echo "🗄️ Deploy patient-db to production"
-          envsubst < k8s/patient-db.yaml | kubectl apply -n $NAMESPACE -f -
-          echo "🗄️ Deploy doctor-db to production"
-          envsubst < k8s/doctor-db.yaml | kubectl apply -n $NAMESPACE -f -
-          echo "⏳ Waiting for databases to be ready..."
-          kubectl rollout status deployment/patient-db -n $NAMESPACE --timeout=3m
-          kubectl rollout status deployment/doctor-db -n $NAMESPACE --timeout=3m
-          sleep 10
+          mkdir -p ~/.ssh
+          echo "${{ secrets.MASTER_NODE_SSH_KEY }}" > ~/.ssh/master.pem
+          chmod 600 ~/.ssh/master.pem
+          ssh-keyscan -H 174.129.231.212 >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh-keyscan -H 3.217.37.12 >> ~/.ssh/known_hosts 2>/dev/null || true
 
-      - name: Deploy to production
-        # Apply the same manifests to production namespace
+      - name: Install Ansible & dependencies
+        run: |
+          pip install ansible kubernetes
+          ansible --version
+
+      - name: Deploy to production via Ansible
+        working-directory: ansible
         env:
-          NAMESPACE: ${{ env.PROD_NAMESPACE }}
           IMAGE_TAG_PATIENT: ${{ env.IMAGE_TAG_PATIENT }}
           IMAGE_TAG_DOCTOR: ${{ env.IMAGE_TAG_DOCTOR }}
-          APP_PORT_PATIENT: ${{ env.APP_PORT_PATIENT }}
-          APP_PORT_DOCTOR: ${{ env.APP_PORT_DOCTOR }}
           NODE_PORT_PATIENT: ${{ env.NODE_PORT_PROD_PATIENT }}
           NODE_PORT_DOCTOR: ${{ env.NODE_PORT_PROD_DOCTOR }}
+          KUBECONFIG: ~/.kube/config
+          namespace: ${{ env.PROD_NAMESPACE }}
         run: |
-          echo "🧹 Clean old service deployments..."
-          kubectl delete deployment patient-service -n $NAMESPACE --ignore-not-found --timeout=60s || true
-          kubectl delete deployment doctor-service -n $NAMESPACE --ignore-not-found --timeout=60s || true
-          kubectl wait --for=delete pod -l app=patient-service -n $NAMESPACE --timeout=60s || true
-          kubectl wait --for=delete pod -l app=doctor-service -n $NAMESPACE --timeout=60s || true
-          echo "🚀 Deploy patient-service to production"
-          envsubst < k8s/patient-deployment.yaml | kubectl apply -n $NAMESPACE -f -
-          envsubst < k8s/patient-service.yaml | kubectl apply -n $NAMESPACE -f -
-          echo "🚀 Deploy doctor-service to production"
-          envsubst < k8s/doctor-deployment.yaml | kubectl apply -n $NAMESPACE -f -
-          envsubst < k8s/doctor-service.yaml | kubectl apply -n $NAMESPACE -f -
-          echo "⏳ Waiting for rollout..."
-          kubectl rollout status deployment/patient-service -n $NAMESPACE --timeout=5m
-          kubectl rollout status deployment/doctor-service -n $NAMESPACE --timeout=5m
-
-      - name: Create production info artifact
-        # Generate a summary file with deployment information
-        run: |
-          cat > service_info.env <<EOF
-          PATIENT_SERVICE_URL=http://$(kubectl get svc patient-service -n ${{ env.PROD_NAMESPACE }} -o jsonpath='{.spec.clusterIP}'):${{ env.APP_PORT_PATIENT }}
-          DOCTOR_SERVICE_URL=http://$(kubectl get svc doctor-service -n ${{ env.PROD_NAMESPACE }} -o jsonpath='{.spec.clusterIP}'):${{ env.APP_PORT_DOCTOR }}
-          DEPLOYMENT_TIME=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-          DEPLOYMENT_COMMIT=${{ github.sha }}
-          EOF
-
-      - name: Upload service info
-        uses: actions/upload-artifact@v4
-        with:
-          name: prod-service-info
-          path: service_info.env
+          ansible-playbook playbooks/deploy-medinsight.yml -e "env=prod"

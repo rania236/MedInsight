@@ -417,7 +417,7 @@
     #            targetPort: 8082
     #            nodePort: "{{ node_port_doctor }}"
     #        type: NodePort
-    - name: Render doctor-service Service YAML from Jinja template
+    - name: Render doctorw-service Service YAML from Jinja template
       template:
         src: ../templates/doctor-service.yaml.j2
         dest: /tmp/doctor-service.yaml
