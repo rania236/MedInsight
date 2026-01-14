@@ -331,6 +331,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Setup SSH key for Ansible
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.MASTER_NODE_SSH_KEY }}" > ~/.ssh/master.pem
+          chmod 600 ~/.ssh/master.pem
+          ssh-keyscan -H 174.129.231.212 >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh-keyscan -H 3.217.37.12 >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Install Ansible & dependencies
         # Install Ansible and Kubernetes Python client for automation
