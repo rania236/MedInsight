@@ -1,8 +1,6 @@
 name: CI/CD Pipeline
 
-# This workflow defines a complete CI/CD pipeline for the Java Spring Boot application
-# It runs on push and pull requests to main/master branches
-
+# Cette section définit les déclencheurs (Triggers)
 on:
   push:
     branches: [ master, main ]
@@ -13,7 +11,7 @@ permissions:
   contents: read
   packages: write
 
-# Environment variables used across all jobs
+# Variables d'environnement globales pour les tags d'images et ports
 env:
   IMAGE_TAG_PATIENT: ghcr.io/${{ github.repository_owner }}/patient-service:${{ github.sha }}
   IMAGE_TAG_DOCTOR: ghcr.io/${{ github.repository_owner }}/doctor-service:${{ github.sha }}
@@ -28,19 +26,16 @@ env:
   NODE_PORT_PROD_DOCTOR: "30083"
 
 jobs:
-  # Job 1: Pre-check - Secret detection using Gitleaks
-  # Scans the codebase for accidentally committed secrets (API keys, passwords, etc.)
+  # JOB 1 : Détection de secrets avec Gitleaks
   precheck:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history needed for proper secret scanning
+          fetch-depth: 0  # Nécessaire pour analyser l'historique complet
 
       - name: Gitleaks - secrets detection
-        # Run Gitleaks to detect any leaked secrets in the repository
-        # Uses --no-git to scan files directly, --exit-code 0 to not fail on findings
         run: |
           docker run --rm -v $(pwd):/src zricethezav/gitleaks:latest detect \
             --source /src \
@@ -51,7 +46,6 @@ jobs:
           [ -s gitleaks.json ] || echo "[]" > gitleaks.json
 
       - name: Display Gitleaks report
-        # Show the contents of the report in the workflow logs
         run: |
           if [ -f gitleaks.json ]; then
             cat gitleaks.json
@@ -60,19 +54,16 @@ jobs:
           fi
 
       - name: Upload Gitleaks report
-        # Save the report as an artifact for later review
         uses: actions/upload-artifact@v4
         with:
           name: gitleaks-report
           path: gitleaks.json
         if: always()
 
-  # Job 2: Scan - Security and code quality analysis
-  # Performs SAST (Static Application Security Testing) with SonarQube
-  # and SCA (Software Composition Analysis) with Snyk
+  # JOB 2 : Analyse de qualité (SAST avec SonarQube et SCA avec Snyk)
   scan:
     runs-on: ubuntu-latest
-    needs: precheck  # Wait for precheck to complete
+    needs: precheck
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -94,7 +85,6 @@ jobs:
           mvn clean compile -DskipTests
 
       - name: SonarQube (SAST)
-        # Static code analysis to find bugs, vulnerabilities, and code smells
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_ORG: ${{ secrets.SONAR_ORGANIZATION }}
@@ -102,12 +92,10 @@ jobs:
           SONAR_URL: ${{ secrets.SONAR_HOST_URL }}
         run: |
           echo "🔍 Running SonarCloud analysis..."
-          
           if [ -z "$SONAR_TOKEN" ] || [ -z "$SONAR_ORG" ] || [ -z "$SONAR_KEY" ]; then
             echo "❌ Missing required SonarCloud secrets!"
             exit 1
           fi
-          
           docker run --rm -v $(pwd):/usr/src \
             -e SONAR_TOKEN=$SONAR_TOKEN \
             sonarsource/sonar-scanner-cli:latest \
@@ -122,7 +110,6 @@ jobs:
         continue-on-error: true
 
       - name: Snyk (SCA)
-        # Scan dependencies for known vulnerabilities
         run: |
           touch snyk-report.json
           docker run --rm -v $(pwd):/src \
@@ -137,21 +124,18 @@ jobs:
           path: snyk-report.json
         if: always()
 
-  # Job 3: Build - Build Docker images for both services
-  # Creates containerized versions of patient-service and doctor-service
+  # JOB 3 : Construction des images Docker pour les deux services
   build:
     runs-on: ubuntu-latest
-    needs: scan  # Wait for security scans to complete
+    needs: scan
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        # Enable advanced Docker build features
         uses: docker/setup-buildx-action@v3
 
       - name: Build patient-service Docker image
-        # Build and export the patient service image as a tar file
         uses: docker/build-push-action@v5
         with:
           context: ./medinsight-project-main/services/patient-service
@@ -159,7 +143,6 @@ jobs:
           outputs: type=docker,dest=patient-docker-image.tar
 
       - name: Build doctor-service Docker image
-        # Build and export the doctor service image as a tar file
         uses: docker/build-push-action@v5
         with:
           context: ./medinsight-project-main/services/doctor-service
@@ -167,7 +150,6 @@ jobs:
           outputs: type=docker,dest=doctor-docker-image.tar
 
       - name: Upload patient Docker image artifact
-        # Save the image for use in subsequent jobs
         uses: actions/upload-artifact@v4
         with:
           name: patient-docker-image
@@ -179,8 +161,7 @@ jobs:
           name: doctor-docker-image
           path: doctor-docker-image.tar
 
-  # Job 4: Image-scan - Scan Docker images for vulnerabilities using Trivy
-  # Checks for HIGH and CRITICAL vulnerabilities in the container images
+  # JOB 4 : Analyse de vulnérabilités des images avec Trivy
   image-scan:
     runs-on: ubuntu-latest
     needs: build
@@ -200,25 +181,20 @@ jobs:
           name: doctor-docker-image
           path: .
 
-      - name: Load patient Docker image
-        # Load the image into Docker daemon for scanning
-        run: docker load < patient-docker-image.tar
-
-      - name: Load doctor Docker image
-        run: docker load < doctor-docker-image.tar
+      - name: Load images to local Docker
+        run: |
+          docker load < patient-docker-image.tar
+          docker load < doctor-docker-image.tar
 
       - name: Trivy scan patient-service
-        # Scan for vulnerabilities in the patient service container
         run: |
           docker run --rm -v $(pwd):/reports aquasec/trivy:latest image patient-local:latest --format json --output /reports/trivy-patient-report.json --severity HIGH,CRITICAL || true
 
       - name: Trivy scan doctor-service
-        # Scan for vulnerabilities in the doctor service container
         run: |
           docker run --rm -v $(pwd):/reports aquasec/trivy:latest image doctor-local:latest --format json --output /reports/trivy-doctor-report.json --severity HIGH,CRITICAL || true
 
       - name: Check Trivy results for patient-service
-        # Parse results and fail if CRITICAL vulnerabilities are found
         run: |
           if [ -f trivy-patient-report.json ]; then
             cat trivy-patient-report.json
@@ -228,8 +204,6 @@ jobs:
               echo "❌ CRITICAL vulnerabilities detected in patient-service. Failing pipeline."
               exit 1
             fi
-          else
-            echo "No trivy report for patient-service"
           fi
 
       - name: Check Trivy results for doctor-service
@@ -242,26 +216,16 @@ jobs:
               echo "❌ CRITICAL vulnerabilities detected in doctor-service. Failing pipeline."
               exit 1
             fi
-          else
-            echo "No trivy report for doctor-service"
           fi
 
-      - name: Upload Trivy patient report
+      - name: Upload Trivy reports
         uses: actions/upload-artifact@v4
         with:
-          name: trivy-patient-report
-          path: trivy-patient-report.json
+          name: trivy-reports
+          path: trivy-*-report.json
         if: always()
 
-      - name: Upload Trivy doctor report
-        uses: actions/upload-artifact@v4
-        with:
-          name: trivy-doctor-report
-          path: trivy-doctor-report.json
-        if: always()
-
-  # Job 5: Push - Push Docker images to GitHub Container Registry
-  # Only runs on main/master branch (not on PRs)
+  # JOB 5 : Publication des images vers GHCR
   push:
     runs-on: ubuntu-latest
     needs: image-scan
@@ -273,64 +237,45 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download patient Docker image
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: patient-docker-image
           path: .
 
-      - name: Download doctor Docker image
-        uses: actions/download-artifact@v4
-        with:
-          name: doctor-docker-image
-          path: .
+      - name: Load and Tag images
+        run: |
+          docker load < patient-docker-image/patient-docker-image.tar
+          docker load < doctor-docker-image/doctor-docker-image.tar
+          docker tag patient-local:latest ${{ env.IMAGE_TAG_PATIENT }}
+          docker tag doctor-local:latest ${{ env.IMAGE_TAG_DOCTOR }}
 
-      - name: Load patient Docker image
-        run: docker load < patient-docker-image.tar
-
-      - name: Load doctor Docker image
-        run: docker load < doctor-docker-image.tar
-
-      - name: Tag patient image
-        # Tag with the full GHCR path including commit SHA
-        run: docker tag patient-local:latest ${{ env.IMAGE_TAG_PATIENT }}
-
-      - name: Tag doctor image
-        run: docker tag doctor-local:latest ${{ env.IMAGE_TAG_DOCTOR }}
-
-      - name: Login to GitHub Container Registry
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_PAT }}
 
-      - name: Push patient image
-        run: docker push ${{ env.IMAGE_TAG_PATIENT }}
+      - name: Push images
+        run: |
+          docker push ${{ env.IMAGE_TAG_PATIENT }}
+          docker push ${{ env.IMAGE_TAG_DOCTOR }}
 
-      - name: Push doctor image
-        run: docker push ${{ env.IMAGE_TAG_DOCTOR }}
-
-  # Job 6: Deploy to staging via Ansible
-  # This job deploys the built Docker images to the staging Kubernetes environment using Ansible
-  # Ansible handles the complete deployment process including setup, databases, and application services
-  # Only runs on main/master branch pushes (not on PRs)
-  # Requires successful completion of the 'push' job
+  # JOB 6 : Déploiement Staging via Ansible
   deploy-to-staging:
     runs-on: ubuntu-latest
-    needs: push  # Depends on images being pushed to registry
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'  # Only deploy from main branches
-    environment: staging  # GitHub environment for staging (can have protection rules)
+    needs: push
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    environment: staging
     steps:
       - name: Checkout code
-        # Retrieve the source code to access Ansible playbooks and Kubernetes manifests
         uses: actions/checkout@v4
 
       - name: Setup Python
-        # Install Python runtime required for Ansible
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
       - name: Setup SSH key for Ansible
         run: |
           mkdir -p ~/.ssh
@@ -340,51 +285,29 @@ jobs:
           ssh-keyscan -H 3.217.37.12 >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Install Ansible & dependencies
-        # Install Ansible and Kubernetes Python client for automation
         run: |
-          # Install Ansible and kubernetes Python module
           pip install ansible kubernetes
-          # Verify Ansible installation
           ansible --version
 
       - name: Configure kubeconfig
-        # Decode and setup kubeconfig from secret for Kubernetes access
         env:
           KUBECONFIG_DATA: ${{ secrets.KUBECONFIG_DATA }}
         run: |
-          # Create kubeconfig directory and decode the base64 encoded config
           mkdir -p ~/.kube
           echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
-          # Verify Kubernetes cluster connection
           kubectl cluster-info
-          # List available nodes in the cluster
-          kubectl get nodes
 
-      - name: Create staging namespace if not exists
-        # Ensure the staging namespace exists before deploying resources
-        # Uses dry-run and apply to create only if it doesn't exist
+      - name: Create staging namespace and pull secret
         run: |
-          # Create namespace in dry-run mode, then apply to actually create if it doesn't exist
           kubectl create namespace ${{ env.STAGING_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
-
-      - name: Create GHCR pull secret
-        # Create a Kubernetes secret to authenticate with GitHub Container Registry
-        # This allows pods to pull the private Docker images we pushed earlier
-        env:
-          GHCR_PAT: ${{ secrets.GHCR_PAT }}
-        run: |
-          # Remove any existing secret to avoid conflicts
           kubectl delete secret ghcr-secret -n ${{ env.STAGING_NAMESPACE }} --ignore-not-found
-          # Create new docker registry secret with GHCR credentials
           kubectl create secret docker-registry ghcr-secret \
             --namespace=${{ env.STAGING_NAMESPACE }} \
             --docker-server=ghcr.io \
             --docker-username=${{ github.actor }} \
-            --docker-password=$GHCR_PAT
+            --docker-password=${{ secrets.GHCR_PAT }}
 
       - name: Deploy to staging via Ansible
-        # Execute the Ansible playbook that handles the complete deployment process
-        # The playbook manages databases, services, and waits for successful rollout
         working-directory: ansible
         env:
           IMAGE_TAG_PATIENT: ${{ env.IMAGE_TAG_PATIENT }}
@@ -394,80 +317,10 @@ jobs:
           KUBECONFIG: ~/.kube/config
           namespace: ${{ env.STAGING_NAMESPACE }}
         run: |
-          # Run the deployment playbook with staging environment variables
           ansible-playbook playbooks/deploy-medinsight.yml -e "env=staging"
 
-  # Job 7: Ansible Health Check - Verify deployment with Ansible
-  # Runs health checks on the deployed staging environment using Ansible
-  # Validates that services are running correctly and cluster is healthy
-  # Only runs on main/master branch pushes after successful deployment
+  # JOB 7 : Vérification Santé via Ansible
   ansible-health-check:
-    runs-on: ubuntu-latest
-    needs: deploy-to-staging  # Wait for staging deployment to complete
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'  # Only on main branches
-    steps:
-      - name: Checkout code
-        # Retrieve the source code to access Ansible playbooks
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        # Install Python runtime required for Ansible
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install Ansible & Kubernetes
-        # Install Ansible and Kubernetes Python client for automation
-        run: |
-          # Install required packages for Ansible automation
-          pip install ansible kubernetes
-          # Verify Ansible installation and version
-          ansible --version
-
-      - name: Setup kubeconfig
-        # Decode and configure kubeconfig for Kubernetes cluster access
-        env:
-          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG_DATA }}
-        run: |
-          # Create kubeconfig directory
-          mkdir -p ~/.kube
-          # Decode base64 kubeconfig data and save to file
-          echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
-          # Set proper permissions for security
-          chmod 600 ~/.kube/config
-
-      - name: Debug kubeconfig
-        # Debug step to verify kubeconfig setup and troubleshoot connection issues
-        run: |
-          # Display .kube directory contents
-          echo "== Contenu de ~/.kube =="
-          ls -lah ~/.kube
-          # Check file permissions
-          echo "== Permission du .kube/config =="
-          stat ~/.kube/config || echo "PAS DE FICHIER"
-          # Show first few lines of config (without sensitive data)
-          echo "== Premières lignes .kube/config =="
-          head ~/.kube/config || echo "FICHIER VIDE"
-
-      - name: Run Ansible Health Check
-        # Execute Ansible playbook to perform comprehensive health checks
-        working-directory: ansible
-        run: |
-          # Run the health check playbook with kubeconfig path
-          echo "🏥 Running Ansible health check..."
-          ansible-playbook playbooks/check-cluster-health.yml -e kubeconfig_path=/home/runner/.kube/config
-
-      - name: Upload health report
-        # Save the health check report as an artifact for review
-        uses: actions/upload-artifact@v4
-        with:
-          name: health-report-${{ github.run_number }}
-          path: ansible/reports/
-          if-no-files-found: ignore
-
-  # Job 8: Security-scan - Dynamic security scan with OWASP ZAP
-# Performs DAST (Dynamic Application Security Testing) against the staging environment
-security-scan:
     runs-on: ubuntu-latest
     needs: deploy-to-staging
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
@@ -475,10 +328,40 @@ security-scan:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup kubectl for port-forward
-        uses: azure/setup-kubectl@v4
+      - name: Setup Python and Ansible
+        uses: actions/setup-python@v5
         with:
-          version: v1.29.0
+          python-version: '3.11'
+
+      - name: Setup kubeconfig
+        env:
+          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG_DATA }}
+        run: |
+          mkdir -p ~/.kube
+          echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Run Ansible Health Check
+        working-directory: ansible
+        run: |
+          pip install ansible kubernetes
+          ansible-playbook playbooks/check-cluster-health.yml -e kubeconfig_path=/home/runner/.kube/config
+
+      - name: Upload health report
+        uses: actions/upload-artifact@v4
+        with:
+          name: health-report-${{ github.run_number }}
+          path: ansible/reports/
+        if: always()
+
+  # JOB 8 : Scan Dynamique (DAST) avec OWASP ZAP
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: deploy-to-staging
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Configure kubeconfig
         env:
@@ -488,27 +371,13 @@ security-scan:
           echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
 
       - name: Port forward and run OWASP ZAP scan
-        # Forward the staging service port and run ZAP baseline scan
         run: |
-          echo "🔍 Starting port-forward..."
           kubectl port-forward -n ${{ env.STAGING_NAMESPACE }} svc/patient-service 8080:${{ env.APP_PORT_PATIENT }} &
           FORWARD_PID=$!
-          
           sleep 5
-          
-          echo "📦 Pulling ZAP image..."
-          docker pull ghcr.io/zaproxy/zaproxy:stable
-          
-          echo "🚀 Starting ZAP scan..."
-          docker run --rm \
-            --network host \
-            -v $(pwd):/zap/wrk/:rw \
+          docker run --rm --network host -v $(pwd):/zap/wrk/:rw \
             ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
-            -t "http://localhost:8080" \
-            -m 10 \
-            -r zap_report.html \
-            -J zap_report.json || true
-          
+            -t "http://localhost:8080" -m 10 -r zap_report.html -J zap_report.json || true
           kill $FORWARD_PID || true
 
       - name: Upload ZAP reports
@@ -518,8 +387,7 @@ security-scan:
           path: zap_report.*
         if: always()
 
-  # Job 9: Promote to prod - Deploy to production (requires manual approval)
-  # This job uses the 'production' environment which should have protection rules configured
+  # JOB 9 : Promotion en Production (Déploiement final)
   promote-to-prod:
     runs-on: ubuntu-latest
     needs: security-scan
@@ -536,23 +404,17 @@ security-scan:
           mkdir -p ~/.kube
           echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
 
-      - name: Create prod namespace if not exists
+      - name: Create prod namespace and secret
         run: |
           kubectl create namespace ${{ env.PROD_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
-
-      - name: Create GHCR pull secret for production
-        env:
-          GHCR_PAT: ${{ secrets.GHCR_PAT }}
-        run: |
           kubectl delete secret ghcr-secret -n ${{ env.PROD_NAMESPACE }} --ignore-not-found
           kubectl create secret docker-registry ghcr-secret \
             --namespace=${{ env.PROD_NAMESPACE }} \
             --docker-server=ghcr.io \
             --docker-username=${{ github.actor }} \
-            --docker-password=$GHCR_PAT
+            --docker-password=${{ secrets.GHCR_PAT }}
 
-      ### Drop all kubectl database & app deploy steps, ADD this:
-      - name: Setup Python
+      - name: Setup Ansible Environment
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -565,11 +427,6 @@ security-scan:
           ssh-keyscan -H 174.129.231.212 >> ~/.ssh/known_hosts 2>/dev/null || true
           ssh-keyscan -H 3.217.37.12 >> ~/.ssh/known_hosts 2>/dev/null || true
 
-      - name: Install Ansible & dependencies
-        run: |
-          pip install ansible kubernetes
-          ansible --version
-
       - name: Deploy to production via Ansible
         working-directory: ansible
         env:
@@ -580,4 +437,5 @@ security-scan:
           KUBECONFIG: ~/.kube/config
           namespace: ${{ env.PROD_NAMESPACE }}
         run: |
+          pip install ansible kubernetes
           ansible-playbook playbooks/deploy-medinsight.yml -e "env=prod"
