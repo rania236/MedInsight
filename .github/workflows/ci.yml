@@ -422,11 +422,19 @@ jobs:
         run: |
           mkdir -p ~/.kube
           echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
+
       - name: Debug kubeconfig
         run: |
+          echo "Contenu de ~/.kube :"
+          ls -lah ~/.kube
+          echo "Taille du fichier config :"
+          stat ~/.kube/config || echo "PAS DE FICHIER"
+          echo "Premières lignes (yaml attendu):"
+          head ~/.kube/config || echo "FICHIER VIDE"
           ls -lh ~/.kube/config
           cat ~/.kube/config
           head ~/.kube/config
+
       - name: Run Ansible Health Check
         working-directory: ansible
         run: |
@@ -436,7 +444,7 @@ jobs:
       - name: Upload health report
         uses: actions/upload-artifact@v4
         with:
-          name: health-report-${{ github.run_number }}
+          name: health-report-${{ github.run_number || github.run_id }}
           path: ansible/reports/
           if-no-files-found: ignore
 
