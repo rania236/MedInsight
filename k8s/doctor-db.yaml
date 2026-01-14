@@ -54,11 +54,11 @@ spec:
             - containerPort: 5432
           env:
             - name: POSTGRES_USER
-              value: "doctor_user"
+              value: "medecin_user"
             - name: POSTGRES_PASSWORD
-              value: "doctor_pass"
+              value: "medecin_pass"
             - name: POSTGRES_DB
-              value: "doctor_db"
+              value: "medecin_db"
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
           volumeMounts:
