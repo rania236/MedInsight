@@ -3,8 +3,8 @@ spring:
     name: user-service
   datasource:
     url: jdbc:postgresql://localhost:5434/medecin_db
-    username: medecin_user
-    password: medecin_pass
+    username: doctor_user
+    password: doctor_pass
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
