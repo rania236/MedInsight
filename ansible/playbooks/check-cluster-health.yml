@@ -5,7 +5,7 @@
 
 - hosts: localhost
   connection: local
-  gather_facts: no
+  gather_facts: false
 
   vars:
     kubeconfig_path: "{{ lookup('env','KUBECONFIG') | default('~/.kube/config', true) }}"
@@ -19,12 +19,15 @@
   tasks:
     - name: Validate kubeconfig is present
       stat:
-        path: "{{ kubeconfig_path }}"
+        path: "{{ kubeconfig_path | default('/home/runner/.kube/config') }}"
       register: kubeconfig_stat
+    
+    - debug:
+        var: kubeconfig_stat
 
     - name: Fail if kubeconfig is missing
       fail:
-        msg: "Kubeconfig not found at {{ kubeconfig_path }}. Ensure KUBECONFIG_DATA is set and decoded."
+        msg: "Kubeconfig not found at {{ kubeconfig_path | default('/home/runner/.kube/config') }}. Ensure KUBECONFIG_DATA is set and decoded."
       when: not kubeconfig_stat.stat.exists
 
     - name: Show kubeconfig path
@@ -35,7 +38,7 @@
       command: kubectl config current-context
       register: kube_context
       changed_when: false
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Display kube context
       debug:
@@ -69,7 +72,7 @@
       command: kubectl get pods -n {{ item }} -o wide
       loop: "{{ namespaces }}"
       register: pods_status
-      ignore_errors: yes
+      ignore_errors: true
       changed_when: false
 
     - name: Display pods status
@@ -95,7 +98,7 @@
       command: kubectl get pv
       register: pv_status
       changed_when: false
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Display PV status
       debug:
@@ -105,7 +108,7 @@
       shell: kubectl get svc -A | grep -E 'medinsight|NAMESPACE'
       register: services_status
       changed_when: false
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Display services
       debug:

@@ -398,59 +398,76 @@ jobs:
           ansible-playbook playbooks/deploy-medinsight.yml -e "env=staging"
 
   # Job 7: Ansible Health Check - Verify deployment with Ansible
+  # Runs health checks on the deployed staging environment using Ansible
+  # Validates that services are running correctly and cluster is healthy
+  # Only runs on main/master branch pushes after successful deployment
   ansible-health-check:
     runs-on: ubuntu-latest
-    needs: deploy-to-staging
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    needs: deploy-to-staging  # Wait for staging deployment to complete
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'  # Only on main branches
     steps:
       - name: Checkout code
+        # Retrieve the source code to access Ansible playbooks
         uses: actions/checkout@v4
 
       - name: Setup Python
+        # Install Python runtime required for Ansible
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install Ansible
+      - name: Install Ansible & Kubernetes
+        # Install Ansible and Kubernetes Python client for automation
         run: |
+          # Install required packages for Ansible automation
           pip install ansible kubernetes
+          # Verify Ansible installation and version
           ansible --version
 
       - name: Setup kubeconfig
+        # Decode and configure kubeconfig for Kubernetes cluster access
         env:
           KUBECONFIG_DATA: ${{ secrets.KUBECONFIG_DATA }}
         run: |
+          # Create kubeconfig directory
           mkdir -p ~/.kube
+          # Decode base64 kubeconfig data and save to file
           echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
+          # Set proper permissions for security
+          chmod 600 ~/.kube/config
 
       - name: Debug kubeconfig
+        # Debug step to verify kubeconfig setup and troubleshoot connection issues
         run: |
-          echo "Contenu de ~/.kube :"
+          # Display .kube directory contents
+          echo "== Contenu de ~/.kube =="
           ls -lah ~/.kube
-          echo "Taille du fichier config :"
+          # Check file permissions
+          echo "== Permission du .kube/config =="
           stat ~/.kube/config || echo "PAS DE FICHIER"
-          echo "Premières lignes (yaml attendu):"
+          # Show first few lines of config (without sensitive data)
+          echo "== Premières lignes .kube/config =="
           head ~/.kube/config || echo "FICHIER VIDE"
-          ls -lh ~/.kube/config
-          cat ~/.kube/config
-          head ~/.kube/config
 
       - name: Run Ansible Health Check
+        # Execute Ansible playbook to perform comprehensive health checks
         working-directory: ansible
         run: |
+          # Run the health check playbook with kubeconfig path
           echo "🏥 Running Ansible health check..."
-          ansible-playbook playbooks/check-cluster-health.yml
+          ansible-playbook playbooks/check-cluster-health.yml -e kubeconfig_path=/home/runner/.kube/config
 
       - name: Upload health report
+        # Save the health check report as an artifact for review
         uses: actions/upload-artifact@v4
         with:
-          name: health-report-${{ github.run_number || github.run_id }}
+          name: health-report-${{ github.run_number }}
           path: ansible/reports/
           if-no-files-found: ignore
 
   # Job 8: Security-scan - Dynamic security scan with OWASP ZAP
-  # Performs DAST (Dynamic Application Security Testing) against the staging environment
-  security-scan:
+# Performs DAST (Dynamic Application Security Testing) against the staging environment
+security-scan:
     runs-on: ubuntu-latest
     needs: deploy-to-staging
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'

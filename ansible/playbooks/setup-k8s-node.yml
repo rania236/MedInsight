@@ -4,7 +4,7 @@
 
 - name: Setup Kubernetes nodes
   hosts: k8s_cluster
-  become: yes
+  become: true
   
   vars:
     k8s_packages:
@@ -67,7 +67,7 @@
     - name: Check if Docker is installed
       command: docker --version
       register: docker_check
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Install Docker (if not present)
       block:
