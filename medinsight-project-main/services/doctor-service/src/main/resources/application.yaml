@@ -1,6 +1,6 @@
 spring:
   application:
-    name: user-service
+    name: doctor-service
   datasource:
     url: jdbc:postgresql://localhost:5434/medecin_db
     username: medecin_user
@@ -22,9 +22,9 @@ spring:
     activate:
       on-profile: prod
   datasource:
-    url: jdbc:postgresql://doctor-db:5432/medecin_db
-    username: medecin_user
-    password: medecin_pass
+    url: jdbc:postgresql://doctor-db:5432/doctor_db
+    username: doctor_user
+    password: doctor_pass
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:

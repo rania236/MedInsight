@@ -1,0 +1,66 @@
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-init-job
+  namespace: keycloak
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: init
+          image: postgres:16-alpine
+          env:
+            - name: PGPASSWORD
+              value: postgres123
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for PostgreSQL..."
+              until pg_isready -h postgres -p 5432 -U postgres; do
+                sleep 2
+              done
+
+              echo "Create users and databases"
+              psql -h postgres -U postgres <<EOF
+              CREATE USER keycloak WITH ENCRYPTED PASSWORD 'keycloak123';
+              CREATE DATABASE keycloak OWNER keycloak;
+
+              CREATE USER users_user WITH ENCRYPTED PASSWORD 'users123';
+              CREATE DATABASE users OWNER users_user;
+
+              CREATE USER orders_user WITH ENCRYPTED PASSWORD 'orders123';
+              CREATE DATABASE orders OWNER orders_user;
+
+              CREATE USER billing_user WITH ENCRYPTED PASSWORD 'billing123';
+              CREATE DATABASE billing OWNER billing_user;
+              EOF
+
+              echo "Grant schema rights per database..."
+
+              psql -h postgres -U postgres -d keycloak <<EOF
+              GRANT ALL ON SCHEMA public TO keycloak;
+              ALTER SCHEMA public OWNER TO keycloak;
+              EOF
+
+              psql -h postgres -U postgres -d users <<EOF
+              GRANT ALL ON SCHEMA public TO users_user;
+              ALTER SCHEMA public OWNER TO users_user;
+              EOF
+
+              psql -h postgres -U postgres -d orders <<EOF
+              GRANT ALL ON SCHEMA public TO orders_user;
+              ALTER SCHEMA public OWNER TO orders_user;
+              EOF
+
+              psql -h postgres -U postgres -d billing <<EOF
+              GRANT ALL ON SCHEMA public TO billing_user;
+              ALTER SCHEMA public OWNER TO billing_user;
+              EOF
+
+              echo "PostgreSQL init finished."
+
+
