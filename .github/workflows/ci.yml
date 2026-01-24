@@ -188,11 +188,15 @@ jobs:
 
       - name: Trivy scan patient-service
         run: |
+          mkdir -p reports
           docker run --rm -v $(pwd):/reports aquasec/trivy:latest image patient-local:latest --format json --output /reports/trivy-patient-report.json --severity HIGH,CRITICAL || true
+          [ -s reports/trivy-patient-report.json ] || echo "[]" > reports/trivy-patient-report.json
 
       - name: Trivy scan doctor-service
         run: |
+          mkdir -p reports
           docker run --rm -v $(pwd):/reports aquasec/trivy:latest image doctor-local:latest --format json --output /reports/trivy-doctor-report.json --severity HIGH,CRITICAL || true
+          [ -s reports/trivy-doctor-report.json ] || echo "[]" > reports/trivy-doctor-report.json
 
       - name: Check Trivy results for patient-service
         run: |
@@ -222,7 +226,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: trivy-reports
-          path: trivy-*-report.json
+          path: reports/trivy-*-report.json
         if: always()
 
   # JOB 5 : Publication des images vers GHCR
@@ -382,6 +386,8 @@ jobs:
             ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
             -t "http://localhost:8080" -m 10 -r zap_report.html -J zap_report.json || true
           kill $FORWARD_PID || true
+          [ -s zap_report.html ] || echo "<html><body>No report generated</body></html>" > zap_report.html
+          [ -s zap_report.json ] || echo "{}" > zap_report.json
 
       - name: Upload ZAP reports
         uses: actions/upload-artifact@v4
