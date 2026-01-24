@@ -113,6 +113,10 @@ jobs:
         run: |
           ls -lR medinsight-project-main
 
+      - name: Print SNYK_TOKEN length
+        run: |
+          echo "${{ secrets.SNYK_TOKEN }}" | wc -c
+
 
       - name: Debug Snyk Auth
         run: |
