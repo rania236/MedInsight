@@ -25,7 +25,7 @@
     # These can be overridden by -e in CI/CD. Example:
     # ansible-playbook playbooks/deploy-medinsight.yml -e "image_tag_doctor=ghcr.io/rania236/doctor-service:abcdef123456" -e "image_tag_patient=ghcr.io/rania236/patient-service:abcdef123456"
     image_tag_patient: "{{ image_tag_patient | default('ghcr.io/rania236/patient-service:0c7ee329761a100d7c7176bb753ae75bb8161e38') }}"
-    image_tag_doctor: "{{ image_tag_doctor | default('ghcr.io/rania236/doctor-service:17f97516c1142d06a1f54ab11f982c195f7e43d1') }}"
+    image_tag_doctor: "{{ image_tag_doctor | default('ghcr.io/rania236/doctor-service:805389001de6f5cb4a7e50c0cd7dc161b0549a17') }}"
   
   tasks:
     - name: Create namespace

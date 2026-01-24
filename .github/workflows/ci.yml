@@ -113,26 +113,23 @@ jobs:
         run: |
           ls -lR medinsight-project-main
 
+
+      - name: Debug Snyk Auth
+        run: |
+          docker run --rm -v $(pwd):/src -e SNYK_TOKEN=${{ secrets.SNYK_TOKEN }} snyk/snyk:maven-3-jdk-17 sh -c "snyk auth \$SNYK_TOKEN"
+
       - name: Snyk (SCA)
         run: |
-          touch snyk-report.json
-          echo 'Listing files inside Docker container before Snyk scan:'
-          docker run --rm -v $(pwd):/src busybox ls -lR /src/medinsight-project-main || true
-          echo 'SNYK_TOKEN length:'
-          echo "${{ secrets.SNYK_TOKEN }}" | wc -c
+          set -e
           echo 'Snyk CLI version:'
-          docker run --rm snyk/snyk:maven-3-jdk-17 snyk --version || true
+          docker run --rm snyk/snyk:maven-3-jdk-17 snyk --version
           echo 'Direct Snyk test on patient-service pom.xml:'
-          docker run --rm -v $(pwd):/src -e SNYK_TOKEN=${{ secrets.SNYK_TOKEN }} snyk/snyk:maven-3-jdk-17 sh -c "cd /src/medinsight-project-main/services/patient-service && snyk auth \$SNYK_TOKEN && snyk test --json > /src/snyk-direct-patient.json" || true
-          echo 'Direct Snyk test report preview:'
-          head -40 snyk-direct-patient.json || true
-          docker run --rm -v $(pwd):/src \
-            -e SNYK_TOKEN=${{ secrets.SNYK_TOKEN }} \
-            snyk/snyk:maven-3-jdk-17 sh -c "cd /src/medinsight-project-main && snyk auth \$SNYK_TOKEN && snyk test --all-projects --json > /src/snyk-report.json" || true
-          echo 'Snyk report preview:'
-          head -40 snyk-report.json || true
-          [ -s snyk-report.json ] || echo '[]' > snyk-report.json
-        continue-on-error: true
+          docker run --rm -v $(pwd):/src -e SNYK_TOKEN=${{ secrets.SNYK_TOKEN }} snyk/snyk:maven-3-jdk-17 sh -c "cd /src/medinsight-project-main/services/patient-service && snyk auth \$SNYK_TOKEN && snyk test --json > /src/snyk-direct-patient.json"
+          cat snyk-direct-patient.json || true
+          echo 'Snyk test --all-projects:'
+          docker run --rm -v $(pwd):/src -e SNYK_TOKEN=${{ secrets.SNYK_TOKEN }} snyk/snyk:maven-3-jdk-17 sh -c "cd /src/medinsight-project-main && snyk auth \$SNYK_TOKEN && snyk test --all-projects --json > /src/snyk-report.json"
+          cat snyk-report.json || true
+        continue-on-error: false
 
       - name: Upload Snyk report
         uses: actions/upload-artifact@v4
