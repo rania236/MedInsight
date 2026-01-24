@@ -122,18 +122,16 @@ jobs:
         run: |
           docker run --rm -v $(pwd):/src -e SNYK_TOKEN=${{ secrets.SNYK_TOKEN }} snyk/snyk:maven-3-jdk-17 sh -c "snyk auth \$SNYK_TOKEN"
 
-      - name: Snyk (SCA)
+      - name: Snyk test patient-service
         run: |
-          set -e
-          echo 'Snyk CLI version:'
-          docker run --rm snyk/snyk:maven-3-jdk-17 snyk --version
-          echo 'Direct Snyk test on patient-service pom.xml:'
-          docker run --rm -v $(pwd):/src -e SNYK_TOKEN=${{ secrets.SNYK_TOKEN }} snyk/snyk:maven-3-jdk-17 sh -c "cd /src/medinsight-project-main/services/patient-service && snyk test --json > /src/snyk-direct-patient.json"
-          cat snyk-direct-patient.json || true
-          echo 'Snyk test --all-projects:'
-          docker run --rm -v $(pwd):/src -e SNYK_TOKEN=${{ secrets.SNYK_TOKEN }} snyk/snyk:maven-3-jdk-17 sh -c "cd /src/medinsight-project-main && snyk test --all-projects --json > /src/snyk-report.json"
-          cat snyk-report.json || true
-        continue-on-error: false
+          docker run --rm -v $(pwd):/src -e SNYK_TOKEN=${{ secrets.SNYK_TOKEN }} snyk/snyk:maven-3-jdk-17 \
+            sh -c "cd /src/medinsight-project-main/services/patient-service && snyk test --file=pom.xml --json > /src/snyk-patient-report.json"
+
+      - name: Upload Snyk report
+        uses: actions/upload-artifact@v4
+        with:
+          name: snyk-patient-report
+          path: snyk-patient-report.json
 
       - name: Upload Snyk report
         uses: actions/upload-artifact@v4
