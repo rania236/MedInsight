@@ -109,9 +109,15 @@ jobs:
             -Dsonar.exclusions=**/test/**
         continue-on-error: true
 
+      - name: List files for Snyk debug
+        run: |
+          ls -lR medinsight-project-main
+
       - name: Snyk (SCA)
         run: |
           touch snyk-report.json
+          echo 'Listing files inside Docker container before Snyk scan:'
+          docker run --rm -v $(pwd):/src busybox ls -lR /src/medinsight-project-main || true
           docker run --rm -v $(pwd):/src \
             -e SNYK_TOKEN=${{ secrets.SNYK_TOKEN }} \
             snyk/snyk:maven-3-jdk-17 sh -c "cd /src/medinsight-project-main && snyk auth \$SNYK_TOKEN && snyk test --all-projects --json > /src/snyk-report.json" || true
