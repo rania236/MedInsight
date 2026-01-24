@@ -115,6 +115,9 @@ jobs:
           docker run --rm -v $(pwd):/src \
             -e SNYK_TOKEN=${{ secrets.SNYK_TOKEN }} \
             snyk/snyk:maven-3-jdk-17 sh -c "cd /src/medinsight-project-main && snyk auth \$SNYK_TOKEN && snyk test --all-projects --json > /src/snyk-report.json" || true
+          echo 'Snyk report preview:'
+          head -40 snyk-report.json || true
+          [ -s snyk-report.json ] || echo '[]' > snyk-report.json
         continue-on-error: true
 
       - name: Upload Snyk report
