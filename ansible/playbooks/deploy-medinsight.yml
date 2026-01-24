@@ -23,7 +23,7 @@
     node_port_patient: "{{ environments[env].node_port_patient | int }}"
     node_port_doctor: "{{ environments[env].node_port_doctor | int }}"
     image_tag_patient: "ghcr.io/rania236/patient-service:0c7ee329761a100d7c7176bb753ae75bb8161e38"
-    image_tag_doctor: "ghcr.io/rania236/doctor-service:1259a748889631bfe07691eec7dfbc8969926e29"
+    image_tag_doctor: "ghcr.io/rania236/doctor-service:17f97516c1142d06a1f54ab11f982c195f7e43d1"
   
   tasks:
     - name: Create namespace

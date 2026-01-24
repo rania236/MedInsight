@@ -1,16 +1,4 @@
 #!/bin/bash
-kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
-
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo add grafana https://grafana.github.io/helm-charts
-helm repo update
-
-helm install prometheus prometheus-community/prometheus --namespace monitoring -f values-prometheus.yaml
-
-helm install grafana grafana/grafana --namespace monitoring -f values-grafana.yaml
-
-kubectl get svc -n monitoring
-#!/bin/bash
 
 # Ensure monitoring namespace exists
 echo "Creating 'monitoring' namespace if it does not exist..."
