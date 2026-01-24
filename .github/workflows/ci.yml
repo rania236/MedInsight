@@ -69,6 +69,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Snyk Maven build and scan (patient-service)
+        run: |
+          mkdir -p reports
+          docker run --rm -v $(pwd):/src -e SNYK_TOKEN=${{ secrets.SNYK_TOKEN }} snyk/snyk:maven-3-jdk-17 \
+            sh -c "cd /src/medinsight-project-main/services/patient-service \
+              && mvn clean compile -DskipTests \
+              && snyk test --json --file=pom.xml > /src/reports/snyk-patient-report.json"
+          [ -s reports/snyk-patient-report.json ] || echo '{}' > reports/snyk-patient-report.json
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
