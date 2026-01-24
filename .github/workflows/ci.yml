@@ -125,10 +125,15 @@ jobs:
       - name: Prepare reports directory
         run: mkdir -p reports
 
-      - name: Snyk test patient-service
+
+      # Best practice: Run Maven build and Snyk scan together in the same container so all dependencies are resolved and available for Snyk analysis, just like a local scan.
+      - name: Snyk Maven build and scan (patient-service)
         run: |
+          mkdir -p reports
           docker run --rm -v $(pwd):/src -e SNYK_TOKEN=${{ secrets.SNYK_TOKEN }} snyk/snyk:maven-3-jdk-17 \
-            sh -c "cd /src/medinsight-project-main/services/patient-service && snyk test --file=pom.xml --json > /src/reports/snyk-patient-report.json"
+            sh -c "cd /src/medinsight-project-main/services/patient-service \
+              && mvn clean compile -DskipTests \
+              && snyk test --json --file=pom.xml > /src/reports/snyk-patient-report.json"
           [ -s reports/snyk-patient-report.json ] || echo '{}' > reports/snyk-patient-report.json
 
       - name: List Snyk report files
