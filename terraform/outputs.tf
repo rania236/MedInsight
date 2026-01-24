@@ -1,3 +1,13 @@
+
+output "worker2_public_ip" {
+  description = "Elastic IP of the Worker2 node"
+  value       = aws_eip.worker2.public_ip
+}
+
+output "worker2_private_ip" {
+  description = "Private IP of the Worker2 node"
+  value       = data.aws_instance.worker2.private_ip
+}
 # Outputs for MedInsight Terraform configuration
 
 output "master_public_ip" {
