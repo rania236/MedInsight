@@ -317,7 +317,10 @@ jobs:
           KUBECONFIG: ~/.kube/config
           namespace: ${{ env.STAGING_NAMESPACE }}
         run: |
-          ansible-playbook playbooks/deploy-medinsight.yml -e "env=staging"
+          ansible-playbook playbooks/deploy-medinsight.yml \
+            -e "env=staging" \
+            -e "image_tag_doctor=${{ env.IMAGE_TAG_DOCTOR }}" \
+            -e "image_tag_patient=${{ env.IMAGE_TAG_PATIENT }}"
 
   # JOB 7 : Vérification Santé via Ansible
   ansible-health-check:
@@ -438,4 +441,7 @@ jobs:
           namespace: ${{ env.PROD_NAMESPACE }}
         run: |
           pip install ansible kubernetes
-          ansible-playbook playbooks/deploy-medinsight.yml -e "env=prod"
+          ansible-playbook playbooks/deploy-medinsight.yml \
+            -e "env=prod" \
+            -e "image_tag_doctor=${{ env.IMAGE_TAG_DOCTOR }}" \
+            -e "image_tag_patient=${{ env.IMAGE_TAG_PATIENT }}"
