@@ -1,8 +1,65 @@
-adminPassword: "admin"
+# Configuration Grafana optimisée pour AWS (budget réduit)
 
+# Mot de passe admin
+adminPassword: "admin123"
+
+# Service NodePort
 service:
   type: NodePort
   nodePort: 30950
 
+# ⚠️ PERSISTANCE DÉSACTIVÉE pour économiser
 persistence:
   enabled: false
+
+# Ressources minimales
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Préconfiguration des data sources
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        url: http://prometheus-server:80
+        access: proxy
+        isDefault: true
+      
+      - name: Loki
+        type: loki
+        url: http://loki:3100
+        access: proxy
+
+# Dashboards par défaut
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+
+# Importer des dashboards Kubernetes de base
+dashboards:
+  default:
+    kubernetes-cluster:
+      gnetId: 7249
+      revision: 1
+      datasource: Prometheus
+    
+    kubernetes-pods:
+      gnetId: 6417
+      revision: 1
+      datasource: Prometheus
