@@ -199,6 +199,14 @@
                     env:
                       - name: SPRING_PROFILES_ACTIVE
                         value: prod
+                      - name: SPRING_DATASOURCE_URL
+                        value: "jdbc:postgresql://patient-db.{{ namespace }}.svc.cluster.local:5432/patient_db"
+                      - name: SPRING_DATASOURCE_USERNAME
+                        value: "patient_user"
+                      - name: SPRING_DATASOURCE_PASSWORD
+                        value: "patient_pass"
+                        
+
 
     # --- Suppression et déploiement du Service patient-service (corrigé !) ---
     - name: Delete old patient-service Service
@@ -400,6 +408,13 @@
                     env:
                       - name: SPRING_PROFILES_ACTIVE
                         value: prod
+                      - name: SPRING_DATASOURCE_URL
+                        value: "jdbc:postgresql://doctor-db.{{ namespace }}.svc.cluster.local:5432/doctor_db"
+                      - name: SPRING_DATASOURCE_USERNAME
+                        value: "doctor_user"
+                      - name: SPRING_DATASOURCE_PASSWORD
+                        value: "doctor_pass"
+                        
 
     #- name: Deploy doctor-service Service
     #  kubernetes.core.k8s:
